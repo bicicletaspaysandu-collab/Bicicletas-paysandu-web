@@ -248,7 +248,7 @@ export default function AdminPage() {
               ))}
             </div>
           ) : (
-            <ReservationsList reservations={reservas} mostrarCliente />
+            <ReservationsList reservations={reservas} mostrarCliente onUpdate={cargarReservas} />
           )}
         </section>
       )}

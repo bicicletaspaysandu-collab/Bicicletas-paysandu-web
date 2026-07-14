@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { Reservation } from "@/lib/types";
+import type { Reservation, ReservationStatus } from "@/lib/types";
 import { formatFecha, formatHora, formatUYU } from "@/lib/format";
 import StatusBadge from "./StatusBadge";
+import { useAuth } from "@/lib/auth-context";
+import { apiFetch } from "@/lib/api";
 
 interface Props {
   reservations: Reservation[];
@@ -11,6 +13,24 @@ interface Props {
   mostrarCliente?: boolean;
   /** Si se provee, habilita la cancelación de reservas */
   onCancel?: (id: string) => Promise<void>;
+  /** Callback opcional cuando se actualiza el estado (admin) */
+  onUpdate?: () => void;
+}
+
+const TIMELINE_STEPS: { status: ReservationStatus; label: string; icon: string }[] = [
+  { status: "confirmed", label: "Confirmada", icon: "📅" },
+  { status: "ingresada", label: "En Taller", icon: "🚲" },
+  { status: "en_trabajo", label: "En Reparación", icon: "🛠️" },
+  { status: "lista_para_retirar", label: "Lista para Retirar", icon: "🎉" }
+];
+
+function getTimelineIndex(status: ReservationStatus): number {
+  if (status === "cancelled") return -1;
+  if (status === "confirmed") return 0;
+  if (status === "ingresada" || status === "en_diagnostico") return 1;
+  if (status === "en_trabajo") return 2;
+  if (status === "lista_para_retirar" || status === "entregada") return 3;
+  return 0;
 }
 
 /** Una reserva puede cancelarse solo con 24 horas o más de anticipación. */
@@ -24,9 +44,17 @@ export default function ReservationsList({
   reservations,
   mostrarCliente = false,
   onCancel,
+  onUpdate,
 }: Props) {
+  const { token, role } = useAuth();
   const [cancelando, setCancelando] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [guardandoId, setGuardandoId] = useState<string | null>(null);
+
+  // Admin edit states
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editStatus, setEditStatus] = useState<ReservationStatus>("confirmed");
+  const [editNotes, setEditNotes] = useState("");
 
   const cancelar = async (id: string) => {
     if (!onCancel) return;
@@ -45,6 +73,37 @@ export default function ReservationsList({
     }
   };
 
+  const iniciarEdicion = (r: Reservation) => {
+    setEditingId(r.id);
+    setEditStatus(r.status);
+    setEditNotes(r.mechanic_notes || "");
+  };
+
+  const guardarEdicionAdmin = async (id: string) => {
+    setGuardandoId(id);
+    setErrores((prev) => ({ ...prev, [id]: "" }));
+    try {
+      // We hit the hijacked cancel route which acts as an admin update route when body params are sent
+      await apiFetch(`/api/reservations/${id}/cancel`, {
+        method: "PUT",
+        token,
+        body: JSON.stringify({
+          status: editStatus,
+          mechanic_notes: editNotes
+        })
+      });
+      setEditingId(null);
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      setErrores((prev) => ({
+        ...prev,
+        [id]: err instanceof Error ? err.message : "Error al actualizar reserva",
+      }));
+    } finally {
+      setGuardandoId(null);
+    }
+  };
+
   if (reservations.length === 0) {
     return (
       <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center text-stone-500">
@@ -54,69 +113,194 @@ export default function ReservationsList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {reservations.map((r) => {
         const cancelable = esCancelable(r);
-        const activa = r.status === "confirmed";
+        const activa = r.status !== "cancelled";
+        const currentStepIdx = getTimelineIndex(r.status);
+        const esAdmin = role === "admin" && mostrarCliente;
+        const isEditing = editingId === r.id;
+
         return (
           <div
             key={r.id}
-            className={`rounded-2xl border bg-white p-4 shadow-sm sm:p-5 ${
-              activa ? "border-stone-200" : "border-stone-200 opacity-70"
+            className={`rounded-2xl border bg-white p-5 shadow-sm space-y-4 transition-all ${
+              activa ? "border-stone-200" : "border-stone-200 opacity-70 bg-stone-50/50"
             }`}
           >
+            {/* 1. Header Information */}
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+              <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold text-stone-900">
+                  <span className="text-base font-bold text-stone-900">
                     {r.service_type}
-                  </p>
+                  </span>
                   <StatusBadge status={r.status} />
                 </div>
-                <p className="mt-1 text-sm text-stone-600">
+                <p className="text-xs text-stone-500">
                   {formatFecha(r.reservation_date)} · {formatHora(r.time_slot)}
                 </p>
-                <p className="mt-0.5 text-sm text-stone-600">
-                  Bicicleta: <span className="font-medium">{r.bike_brand}</span>
+                <p className="text-xs text-stone-600">
+                  Bicicleta: <span className="font-semibold text-stone-800">{r.bike_brand}</span>
                 </p>
                 {mostrarCliente && (
-                  <p className="mt-0.5 text-sm text-stone-600">
-                    Cliente:{" "}
-                    <span className="font-medium">
-                      {r.client_name || "Sin nombre"}
-                    </span>{" "}
-                    ({r.client_email})
+                  <p className="text-xs text-stone-600">
+                    Cliente: <span className="font-semibold text-stone-800">{r.client_name || "Sin nombre"}</span> ({r.client_email})
                   </p>
                 )}
               </div>
               <div className="text-right">
-                <p className="text-lg font-bold text-stone-900">
+                <p className="text-xl font-black text-amber-600">
                   {formatUYU(r.price)}
                 </p>
-                <p className="text-xs text-stone-500">Precio final (UYU)</p>
+                <p className="text-[10px] text-stone-400">Total Mano de Obra</p>
               </div>
             </div>
 
-            {onCancel && activa && (
-              <div className="mt-4 border-t border-stone-100 pt-3">
+            {/* 2. Technical Intake File details */}
+            {r.bike_details && (
+              <div className="rounded-xl bg-stone-50 p-3.5 text-xs text-stone-700 border border-stone-100 grid gap-2 sm:grid-cols-3">
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-stone-400">Modelo / Color</span>
+                  <span className="font-medium text-stone-800">{r.bike_details.model_color || "No especificado"}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-stone-400">Nº Serie Cuadro</span>
+                  <span className="font-medium text-stone-800">{r.bike_details.serial_number || "No especificado"}</span>
+                </div>
+                <div className="sm:col-span-3 border-t border-stone-200/60 pt-2 mt-1">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-stone-400">Problemas Declarados</span>
+                  <span className="italic text-stone-600">{r.bike_details.issues || "Ninguno"}</span>
+                </div>
+              </div>
+            )}
+
+            {/* 3. Mechanic diagnostic observations */}
+            {r.mechanic_notes && !isEditing && (
+              <div className="rounded-xl bg-amber-50/50 border border-amber-100 p-3 text-xs">
+                <p className="font-bold text-amber-900">👨‍🔧 Observaciones del Mecánico:</p>
+                <p className="mt-1 text-stone-700 leading-relaxed">{r.mechanic_notes}</p>
+              </div>
+            )}
+
+            {/* 4. Interactive Progress Timeline Tracker */}
+            {activa && (
+              <div className="pt-2">
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-stone-400 mb-3">Progreso de Reparación</span>
+                <div className="relative flex justify-between items-center max-w-lg mx-auto px-4">
+                  {/* Timeline connecting line */}
+                  <div className="absolute top-1/2 left-6 right-6 h-0.5 bg-stone-200 -translate-y-1/2 z-0" />
+                  <div 
+                    className="absolute top-1/2 left-6 h-0.5 bg-amber-500 -translate-y-1/2 z-0 transition-all duration-500" 
+                    style={{ width: `${(currentStepIdx / (TIMELINE_STEPS.length - 1)) * 90}%` }}
+                  />
+
+                  {/* Steps */}
+                  {TIMELINE_STEPS.map((step, idx) => {
+                    const isPassed = currentStepIdx >= idx;
+                    const isCurrent = currentStepIdx === idx;
+                    return (
+                      <div key={step.status} className="relative z-10 flex flex-col items-center">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm transition-all duration-300 ${
+                          isCurrent 
+                            ? "border-amber-500 bg-white ring-4 ring-amber-100 scale-110" 
+                            : isPassed 
+                              ? "border-amber-500 bg-amber-500 text-white" 
+                              : "border-stone-200 bg-white text-stone-400"
+                        }`}>
+                          {step.icon}
+                        </div>
+                        <span className={`mt-1.5 text-[9px] font-bold tracking-tight uppercase ${
+                          isCurrent ? "text-amber-600" : isPassed ? "text-stone-800" : "text-stone-400"
+                        }`}>
+                          {step.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 5. Admin edit form controls */}
+            {esAdmin && (
+              <div className="pt-3 border-t border-stone-100">
+                {isEditing ? (
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-3">
+                    <p className="text-xs font-bold text-stone-800">Actualizar Estado del Taller</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Estado de Reparación</label>
+                        <select
+                          value={editStatus}
+                          onChange={(e) => setEditStatus(e.target.value as ReservationStatus)}
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-xs text-stone-900 outline-none focus:border-amber-500"
+                        >
+                          <option value="confirmed">Confirmada</option>
+                          <option value="ingresada">Ingresada al Taller</option>
+                          <option value="en_diagnostico">En Diagnóstico</option>
+                          <option value="en_trabajo">En Reparación</option>
+                          <option value="lista_para_retirar">Lista para Retirar</option>
+                          <option value="entregada">Entregada</option>
+                          <option value="cancelled">Cancelada</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Observaciones Técnicas</label>
+                        <textarea
+                          value={editNotes}
+                          onChange={(e) => setEditNotes(e.target.value)}
+                          placeholder="Recomendaciones o detalles de la reparación..."
+                          rows={2}
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1 text-xs text-stone-900 outline-none focus:border-amber-500 resize-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => guardarEdicionAdmin(r.id)}
+                        disabled={guardandoId === r.id}
+                        className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-stone-900 hover:bg-amber-400 disabled:opacity-60"
+                      >
+                        {guardandoId === r.id ? "Guardando..." : "Guardar Cambios"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => iniciarEdicion(r)}
+                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                  >
+                    🛠️ Gestionar Trabajo de Taller
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 6. Client cancellation button */}
+            {onCancel && activa && !isEditing && r.status === "confirmed" && (
+              <div className="mt-3 border-t border-stone-100 pt-3">
                 {cancelable ? (
                   <button
                     onClick={() => cancelar(r.id)}
                     disabled={cancelando === r.id}
-                    className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {cancelando === r.id
-                      ? "Cancelando…"
-                      : "Cancelar reserva"}
+                    {cancelando === r.id ? "Cancelando…" : "Cancelar reserva"}
                   </button>
                 ) : (
-                  <p className="text-sm text-stone-500">
-                    Esta reserva ya no puede cancelarse: faltan menos de 24
-                    horas para el turno.
+                  <p className="text-xs text-stone-400">
+                    No cancelable: Faltan menos de 24 horas para la cita.
                   </p>
                 )}
                 {errores[r.id] && (
-                  <p className="mt-2 text-sm text-red-600">{errores[r.id]}</p>
+                  <p className="mt-2 text-xs text-red-600">{errores[r.id]}</p>
                 )}
               </div>
             )}

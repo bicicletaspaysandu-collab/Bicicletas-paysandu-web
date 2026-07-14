@@ -1,7 +1,7 @@
 "use client";
 
 import Cal from "@calcom/embed-react";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { MARCAS_REPRESENTADAS, SERVICIOS } from "@/lib/types";
 import { formatUYU } from "@/lib/format";
 
@@ -31,11 +31,14 @@ const SERVICIO_DETALLES: Record<string, { icono: string; descripcion: string; ta
  * Widget de agendamiento del taller.
  * Cuenta con un selector interactivo de tarjetas de servicios, detección
  * en tiempo real de marcas representadas para descuentos con micro-animaciones,
- * y pre-relleno automatizado de campos en Cal.com.
+ * y pre-relleno de campos y ficha técnica de ingreso en Cal.com.
  */
 export default function BookingWidget({ email }: { email: string }) {
   const [servicio, setServicio] = useState<string>(SERVICIOS[1].nombre); // Default to Servicio Básico
   const [marca, setMarca] = useState("");
+  const [modeloColor, setModeloColor] = useState("");
+  const [numeroCuadro, setNumeroCuadro] = useState("");
+  const [detallesProblema, setDetallesProblema] = useState("");
   const [mostrarWidget, setMostrarWidget] = useState(false);
 
   const servicioInfo = SERVICIOS.find((s) => s.nombre === servicio);
@@ -63,11 +66,11 @@ export default function BookingWidget({ email }: { email: string }) {
                 {servicio}
               </p>
               <p className="text-xs text-stone-500">
-                Bicicleta: <span className="font-medium text-stone-700">{marca || "Genérica"}</span> · 
-                Precio estimado: <span className="font-bold text-amber-600">{formatUYU(precioEstimado)}</span>
+                Bici: <span className="font-medium text-stone-700">{marca || "Genérica"}</span> {modeloColor && `(${modeloColor})`} · 
+                Precio: <span className="font-bold text-amber-600">{formatUYU(precioEstimado)}</span>
                 {esRepresentada && (
                   <span className="ml-1.5 inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                    -10% Marca Representada
+                    -10% Marca Oficial
                   </span>
                 )}
               </p>
@@ -77,7 +80,7 @@ export default function BookingWidget({ email }: { email: string }) {
             onClick={() => setMostrarWidget(false)}
             className="rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-800 transition-colors"
           >
-            ← Cambiar Configuración
+            ← Cambiar Ficha
           </button>
         </div>
 
@@ -89,7 +92,7 @@ export default function BookingWidget({ email }: { email: string }) {
             config={{
               email,
               theme: "light",
-              // Pre-fill answers so user doesn't enter them twice
+              // Pre-fill answers to match Cal.com slugs in webhook
               responses: {
                 "service-type": servicio,
                 "service_type": servicio,
@@ -97,6 +100,24 @@ export default function BookingWidget({ email }: { email: string }) {
                 "bike-brand": marca || "Genérica",
                 "bike_brand": marca || "Genérica",
                 "marca": marca || "Genérica",
+                "modelo-color": modeloColor || "No especificado",
+                "modelo_color": modeloColor || "No especificado",
+                "modelo": modeloColor || "No especificado",
+                "color": modeloColor || "No especificado",
+                "numero-cuadro": numeroCuadro || "No especificado",
+                "numero_cuadro": numeroCuadro || "No especificado",
+                "cuadro": numeroCuadro || "No especificado",
+                "serie": numeroCuadro || "No especificado",
+                "frame-number": numeroCuadro || "No especificado",
+                "frame_number": numeroCuadro || "No especificado",
+                "serial": numeroCuadro || "No especificado",
+                "detalles-problema": detallesProblema || "Ninguno",
+                "detalles_problema": detallesProblema || "Ninguno",
+                "problema": detallesProblema || "Ninguno",
+                "falla": detallesProblema || "Ninguno",
+                "issues": detallesProblema || "Ninguno",
+                "comentario": detallesProblema || "Ninguno",
+                "detalles": detallesProblema || "Ninguno"
               }
             }}
           />
@@ -160,16 +181,18 @@ export default function BookingWidget({ email }: { email: string }) {
         </div>
       </div>
 
-      {/* 2. Bike Brand Inputs and real-time banner */}
+      {/* 2. Bike Details and real-time banner */}
       <div className="grid gap-4 md:grid-cols-2 items-start">
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 space-y-3">
-          <label
-            htmlFor="marca"
-            className="block text-sm font-semibold uppercase tracking-wider text-stone-500"
-          >
-            2. Ingresa la Marca de tu Bicicleta
+        {/* Technical Intake Form */}
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
+          <label className="block text-sm font-semibold uppercase tracking-wider text-stone-500">
+            2. Ficha Técnica de Ingreso
           </label>
-          <div className="relative">
+          
+          <div>
+            <label htmlFor="marca" className="mb-1 block text-xs font-semibold text-stone-600">
+              Marca
+            </label>
             <input
               id="marca"
               type="text"
@@ -177,7 +200,7 @@ export default function BookingWidget({ email }: { email: string }) {
               value={marca}
               onChange={(e) => setMarca(e.target.value)}
               placeholder="Ej: Trek, Specialized, GT..."
-              className="w-full rounded-xl border border-stone-200 px-4 py-3 text-stone-900 outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+              className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
             />
             <datalist id="marcas">
               {MARCAS_REPRESENTADAS.map((m) => (
@@ -185,9 +208,49 @@ export default function BookingWidget({ email }: { email: string }) {
               ))}
             </datalist>
           </div>
-          <p className="text-xs text-stone-400">
-            Marcas oficiales obtienen descuento exclusivo en mano de obra.
-          </p>
+
+          <div className="grid gap-3 grid-cols-2">
+            <div>
+              <label htmlFor="modeloColor" className="mb-1 block text-xs font-semibold text-stone-600">
+                Modelo / Color
+              </label>
+              <input
+                id="modeloColor"
+                type="text"
+                value={modeloColor}
+                onChange={(e) => setModeloColor(e.target.value)}
+                placeholder="Ej. Marlin Azul"
+                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+              />
+            </div>
+            <div>
+              <label htmlFor="numeroCuadro" className="mb-1 block text-xs font-semibold text-stone-600">
+                Nº Serie / Cuadro (Opcional)
+              </label>
+              <input
+                id="numeroCuadro"
+                type="text"
+                value={numeroCuadro}
+                onChange={(e) => setNumeroCuadro(e.target.value)}
+                placeholder="Ej. SN12345"
+                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="detallesProblema" className="mb-1 block text-xs font-semibold text-stone-600">
+              ¿Qué falla o detalle técnico tiene?
+            </label>
+            <textarea
+              id="detallesProblema"
+              value={detallesProblema}
+              onChange={(e) => setDetallesProblema(e.target.value)}
+              placeholder="Ej. Cambios saltan en piñón alto, chirrido en frenos traseros..."
+              rows={2}
+              className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 resize-none"
+            />
+          </div>
         </div>
 
         {/* Dynamic Price Output Panel */}
@@ -199,9 +262,17 @@ export default function BookingWidget({ email }: { email: string }) {
             <span className="text-stone-600 text-sm">Servicio:</span>
             <span className="font-semibold text-stone-800 text-sm">{servicio}</span>
           </div>
-          <div className="flex items-baseline justify-between border-b border-stone-100 pb-3">
+          <div className="flex items-baseline justify-between">
             <span className="text-stone-600 text-sm">Bicicleta:</span>
-            <span className="font-semibold text-stone-800 text-sm">{marca.trim() || "Genérica"}</span>
+            <span className="font-semibold text-stone-800 text-sm">
+              {marca.trim() || "Genérica"} {modeloColor.trim() && `(${modeloColor.trim()})`}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between border-b border-stone-100 pb-3">
+            <span className="text-stone-600 text-sm">Ficha Técnica:</span>
+            <span className="font-semibold text-stone-800 text-xs truncate max-w-[180px]">
+              {numeroCuadro.trim() ? `Nº ${numeroCuadro.trim()}` : "Sin Nº de Serie"}
+            </span>
           </div>
           
           <div className="flex items-baseline justify-between pt-1">

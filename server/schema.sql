@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS public.products (
   description TEXT,
   price NUMERIC NOT NULL CHECK (price >= 0), -- Strictly in USD
   image_url TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'bicicleta' CHECK (category IN ('bicicleta', 'accesorio', 'repuesto', 'indumentaria')),
+  stock_status TEXT NOT NULL DEFAULT 'in_stock' CHECK (stock_status IN ('in_stock', 'low_stock', 'out_of_stock', 'on_demand')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -70,10 +72,12 @@ CREATE TABLE IF NOT EXISTS public.reservations (
   client_name TEXT NOT NULL,
   service_type TEXT NOT NULL, -- e.g., 'Ajuste y Regulación', 'Servicio Básico', 'Engrase General'
   bike_brand TEXT NOT NULL,
+  bike_details JSONB, -- Stores bike model, color, serial serial number, and issues
   reservation_date DATE NOT NULL,
   time_slot TIME NOT NULL,
   price NUMERIC NOT NULL CHECK (price >= 0), -- Calculated price in local currency ($ UYU)
-  status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')),
+  status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled', 'ingresada', 'en_diagnostico', 'en_trabajo', 'lista_para_retirar', 'entregada')),
+  mechanic_notes TEXT, -- Diagnostic and status notes left by mechanics
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

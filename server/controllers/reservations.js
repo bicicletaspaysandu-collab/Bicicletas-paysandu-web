@@ -88,6 +88,16 @@ export const handleCalWebhook = async (req, res) => {
       const responses = payload.responses || {};
       const serviceType = extractBookingField(responses, ['service', 'servicio', 'tipo']) || 'Ajuste y Regulación';
       const bikeBrand = extractBookingField(responses, ['brand', 'marca', 'bicicleta']) || 'Genérica';
+      
+      const bikeModelColor = extractBookingField(responses, ['modelo', 'color', 'model']);
+      const bikeSerial = extractBookingField(responses, ['cuadro', 'serie', 'frame', 'serial']);
+      const issues = extractBookingField(responses, ['problema', 'falla', 'issues', 'detalles', 'comentario']);
+
+      const bikeDetails = {
+        model_color: bikeModelColor || 'No especificado',
+        serial_number: bikeSerial || 'No especificado',
+        issues: issues || 'Ninguno'
+      };
 
       // Parse date and time slot
       const reservationDate = startTime.split('T')[0];
@@ -116,6 +126,7 @@ export const handleCalWebhook = async (req, res) => {
           client_name: clientName,
           service_type: serviceType,
           bike_brand: bikeBrand,
+          bike_details: bikeDetails,
           reservation_date: reservationDate,
           time_slot: timeSlot,
           price: finalPrice,
@@ -201,6 +212,35 @@ export const getAllReservations = async (req, res) => {
  */
 export const cancelReservation = async (req, res) => {
   const { id } = req.params;
+  const { status, mechanic_notes } = req.body;
+
+  // Intercept as admin status/notes update if parameters are provided
+  if (req.user.role === 'admin' && (status !== undefined || mechanic_notes !== undefined)) {
+    const validStatuses = ['confirmed', 'cancelled', 'ingresada', 'en_diagnostico', 'en_trabajo', 'lista_para_retirar', 'entregada'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Estado de reserva no válido' });
+    }
+
+    const updates = {};
+    if (status !== undefined) updates.status = status;
+    if (mechanic_notes !== undefined) updates.mechanic_notes = mechanic_notes;
+
+    try {
+      const { data: updatedReservation, error: updateError } = await supabase
+        .from('reservations')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) {
+        return res.status(400).json({ error: 'Error al actualizar el estado de la reserva', details: updateError.message });
+      }
+      return res.json({ message: 'Reserva actualizada exitosamente por el administrador', reservation: updatedReservation });
+    } catch (err) {
+      return res.status(500).json({ error: 'Error interno al actualizar la reserva', details: err.message });
+    }
+  }
 
   try {
     // 1. Fetch reservation
@@ -275,5 +315,43 @@ export const cancelReservation = async (req, res) => {
     res.json({ message: 'Reserva cancelada exitosamente' });
   } catch (error) {
     res.status(500).json({ error: 'Error interno al cancelar la reserva' });
+  }
+};
+
+/**
+ * Update reservation status and mechanic notes (Admin only)
+ */
+export const updateReservationStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status, mechanic_notes } = req.body;
+
+  // Validation
+  const validStatuses = ['confirmed', 'cancelled', 'ingresada', 'en_diagnostico', 'en_trabajo', 'lista_para_retirar', 'entregada'];
+  if (status && !validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Estado de reserva no válido' });
+  }
+
+  const updates = {};
+  if (status !== undefined) updates.status = status;
+  if (mechanic_notes !== undefined) updates.mechanic_notes = mechanic_notes;
+
+  try {
+    const { data: reservation, error } = await supabase
+      .from('reservations')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: 'Error al actualizar el estado de la reserva', details: error.message });
+    }
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reserva no encontrada' });
+    }
+
+    res.json({ message: 'Estado de reserva actualizado exitosamente', reservation });
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno al actualizar el estado de la reserva', details: error.message });
   }
 };
