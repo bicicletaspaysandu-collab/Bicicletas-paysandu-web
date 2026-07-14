@@ -176,51 +176,57 @@ export default function AdminPage() {
             </button>
           )}
 
-          <div className="mt-6 space-y-3">
-            {productos === null && (
-              <div className="h-24 animate-pulse rounded-2xl bg-stone-200" />
-            )}
-            {productos !== null && productos.length === 0 && (
+          <div className="mt-6 space-y-3 min-h-[300px]">
+            {productos === null ? (
+              // Match exact height of administrative product rows (h-[98px])
+              Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={`admin-prod-pulse-${i}`}
+                  className="h-[98px] animate-pulse rounded-2xl bg-stone-200/60"
+                />
+              ))
+            ) : productos.length === 0 ? (
               <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center text-stone-500">
                 No hay productos en el catálogo. Creá el primero.
               </div>
+            ) : (
+              productos.map((p) => (
+                <div
+                  key={p.id}
+                  className="animate-page-fade flex items-center gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.image_url}
+                    alt={p.title}
+                    className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-stone-900">
+                      {p.title}
+                    </p>
+                    <p className="text-sm font-bold text-stone-700">
+                      {formatUSD(p.price)}
+                    </p>
+                  </div>
+                  <div className="flex flex-shrink-0 gap-2">
+                    <button
+                      onClick={() => setEditando(p)}
+                      className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-semibold text-stone-700 transition-colors hover:bg-stone-100"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => eliminarProducto(p)}
+                      disabled={eliminando === p.id}
+                      className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {eliminando === p.id ? "…" : "Eliminar"}
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
-            {productos?.map((p) => (
-              <div
-                key={p.id}
-                className="animate-page-fade flex items-center gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={p.image_url}
-                  alt={p.title}
-                  className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-stone-900">
-                    {p.title}
-                  </p>
-                  <p className="text-sm font-bold text-stone-700">
-                    {formatUSD(p.price)}
-                  </p>
-                </div>
-                <div className="flex flex-shrink-0 gap-2">
-                  <button
-                    onClick={() => setEditando(p)}
-                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-semibold text-stone-700 transition-colors hover:bg-stone-100"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => eliminarProducto(p)}
-                    disabled={eliminando === p.id}
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
-                  >
-                    {eliminando === p.id ? "…" : "Eliminar"}
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
       )}
@@ -238,18 +244,19 @@ export default function AdminPage() {
               Actualizar ↻
             </button>
           </div>
-          {reservas === null ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
+          <div className="space-y-3 min-h-[400px]">
+            {reservas === null ? (
+              // Match average height of detailed reservations (h-[260px])
+              Array.from({ length: 3 }).map((_, i) => (
                 <div
-                  key={i}
-                  className="h-28 animate-pulse rounded-2xl bg-stone-200"
+                  key={`admin-res-pulse-${i}`}
+                  className="h-[260px] animate-pulse rounded-3xl bg-stone-200/60"
                 />
-              ))}
-            </div>
-          ) : (
-            <ReservationsList reservations={reservas} mostrarCliente onUpdate={cargarReservas} />
-          )}
+              ))
+            ) : (
+              <ReservationsList reservations={reservas} mostrarCliente onUpdate={cargarReservas} />
+            )}
+          </div>
         </section>
       )}
     </div>

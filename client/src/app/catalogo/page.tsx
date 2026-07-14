@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { Product, ProductCategory } from "@/lib/types";
+import type { Product } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
 
 const CATEGORIAS: { id: string; label: string }[] = [
@@ -72,31 +72,30 @@ export default function CatalogoPage() {
         </div>
       )}
 
-      {/* Loading state placeholders */}
-      {!error && productos === null && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-72 animate-pulse rounded-3xl bg-stone-200"
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Empty states */}
-      {productos !== null && productosFiltrados.length === 0 && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center text-stone-500">
-          No se encontraron productos en esta categoría en este momento.
-        </div>
-      )}
-
-      {/* Product cards grid */}
-      {productos !== null && productosFiltrados.length > 0 && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {productosFiltrados.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
+      {/* 
+        Persistent grid container to prevent page reflows/layout shifts.
+        Height matches the real ProductCard components exactly (h-[390px]).
+      */}
+      {!error && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 min-h-[400px]">
+          {productos === null ? (
+            // Loading skeleton pulses matching exact card height
+            Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={`pulse-${i}`}
+                className="h-[390px] animate-pulse rounded-3xl bg-stone-200/60"
+              />
+            ))
+          ) : productosFiltrados.length === 0 ? (
+            <div className="col-span-full rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500">
+              No se encontraron productos en esta categoría en este momento.
+            </div>
+          ) : (
+            // Render actual product cards
+            productosFiltrados.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))
+          )}
         </div>
       )}
     </div>
