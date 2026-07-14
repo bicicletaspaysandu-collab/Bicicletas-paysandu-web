@@ -188,7 +188,7 @@ export default function AdminPage() {
             {productos?.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
+                className="animate-page-fade flex items-center gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

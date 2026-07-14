@@ -124,7 +124,7 @@ export default function ReservationsList({
         return (
           <div
             key={r.id}
-            className={`rounded-2xl border bg-white p-5 shadow-sm space-y-4 transition-all ${
+            className={`animate-page-fade rounded-2xl border bg-white p-5 shadow-sm space-y-4 transition-all ${
               activa ? "border-stone-200" : "border-stone-200 opacity-70 bg-stone-50/50"
             }`}
           >

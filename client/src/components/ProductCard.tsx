@@ -31,7 +31,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const whatsappUrl = `https://wa.me/59847212345?text=${textMsg}`;
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm transition-all hover:shadow-md hover:scale-[1.01] hover:border-stone-300">
+    <article className="animate-page-fade flex flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm transition-all hover:shadow-md hover:scale-[1.01] hover:border-stone-300">
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-stone-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
