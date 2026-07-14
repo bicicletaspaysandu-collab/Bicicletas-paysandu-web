@@ -1,21 +1,40 @@
 "use client";
 
 import Cal from "@calcom/embed-react";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { MARCAS_REPRESENTADAS, SERVICIOS } from "@/lib/types";
 import { formatUYU } from "@/lib/format";
 
 const CAL_LINK =
   process.env.NEXT_PUBLIC_CAL_LINK ?? "bicicletas-paysandu/taller";
 
+// Detailed descriptions for each service to populate card items
+const SERVICIO_DETALLES: Record<string, { icono: string; descripcion: string; tareas: string[] }> = {
+  "Ajuste y Regulación": {
+    icono: "🔧",
+    descripcion: "Mantenimiento preventivo rápido para mantener tu bici segura.",
+    tareas: ["Ajuste de frenos delanteros y traseros", "Regulación y calibración de cambios", "Lubricación de transmisión"]
+  },
+  "Servicio Básico": {
+    icono: "🧼",
+    descripcion: "Limpieza profunda y puesta a punto general para el uso diario.",
+    tareas: ["Limpieza de transmisión y cuadro", "Ajuste de frenos y cambios", "Ajuste de tornillería general"]
+  },
+  "Engrase General": {
+    icono: "⚙️",
+    descripcion: "Revisión completa con desarmado total. Ideal para rendimiento óptimo.",
+    tareas: ["Desarmado y engrasado de piezas clave", "Limpieza a fondo de componentes", "Ajuste de dirección, caja y masas"]
+  }
+};
+
 /**
  * Widget de agendamiento del taller.
- * El cliente elige el servicio y la marca de su bicicleta, y luego se
- * incrusta el widget de Cal.com pre-rellenando esas respuestas (junto con
- * el correo del cliente) mediante parámetros de consulta.
+ * Cuenta con un selector interactivo de tarjetas de servicios, detección
+ * en tiempo real de marcas representadas para descuentos con micro-animaciones,
+ * y pre-relleno automatizado de campos en Cal.com.
  */
 export default function BookingWidget({ email }: { email: string }) {
-  const [servicio, setServicio] = useState<string>(SERVICIOS[0].nombre);
+  const [servicio, setServicio] = useState<string>(SERVICIOS[1].nombre); // Default to Servicio Básico
   const [marca, setMarca] = useState("");
   const [mostrarWidget, setMostrarWidget] = useState(false);
 
@@ -23,6 +42,7 @@ export default function BookingWidget({ email }: { email: string }) {
   const esRepresentada = MARCAS_REPRESENTADAS.some(
     (m) => m.toLowerCase() === marca.trim().toLowerCase()
   );
+
   const precioEstimado = servicioInfo
     ? esRepresentada
       ? servicioInfo.precio * 0.9
@@ -31,116 +51,193 @@ export default function BookingWidget({ email }: { email: string }) {
 
   if (mostrarWidget) {
     return (
-      <div>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3">
-          <p className="text-sm text-stone-700">
-            <span className="font-semibold">{servicio}</span> · Marca:{" "}
-            <span className="font-semibold">{marca || "Genérica"}</span> ·
-            Precio estimado:{" "}
-            <span className="font-semibold">{formatUYU(precioEstimado)}</span>
-            {esRepresentada && (
-              <span className="ml-1 text-green-700">
-                (10% de descuento aplicado)
-              </span>
-            )}
-          </p>
+      <div className="animate-fade-in space-y-4">
+        {/* Active configuration status banner */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-xl">
+              {SERVICIO_DETALLES[servicio]?.icono || "🚲"}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-stone-800">
+                {servicio}
+              </p>
+              <p className="text-xs text-stone-500">
+                Bicicleta: <span className="font-medium text-stone-700">{marca || "Genérica"}</span> · 
+                Precio estimado: <span className="font-bold text-amber-600">{formatUYU(precioEstimado)}</span>
+                {esRepresentada && (
+                  <span className="ml-1.5 inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                    -10% Marca Representada
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
           <button
             onClick={() => setMostrarWidget(false)}
-            className="text-sm font-semibold text-amber-600 hover:text-amber-500"
+            className="rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-800 transition-colors"
           >
-            ← Cambiar servicio o marca
+            ← Cambiar Configuración
           </button>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+
+        {/* Embedded Cal.com scheduler */}
+        <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm transition-all">
           <Cal
             calLink={CAL_LINK}
-            style={{ width: "100%", height: "100%", minHeight: "620px" }}
+            style={{ width: "100%", height: "100%", minHeight: "680px" }}
             config={{
               email,
-              servicio,
-              marca: marca || "Genérica",
               theme: "light",
+              // Pre-fill answers so user doesn't enter them twice
+              responses: {
+                "service-type": servicio,
+                "service_type": servicio,
+                "servicio": servicio,
+                "bike-brand": marca || "Genérica",
+                "bike_brand": marca || "Genérica",
+                "marca": marca || "Genérica",
+              }
             }}
           />
         </div>
-        <p className="mt-3 text-xs text-stone-500">
-          Al confirmar el turno en el calendario, la reserva se registrará
-          automáticamente y aparecerá en tu historial con el precio final en
-          pesos uruguayos.
+        <p className="text-center text-xs text-stone-400">
+          Al agendar el turno en el calendario, la reserva se registrará en tu historial.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label
-            htmlFor="servicio"
-            className="mb-1 block text-sm font-medium text-stone-700"
-          >
-            Tipo de servicio
-          </label>
-          <select
-            id="servicio"
-            value={servicio}
-            onChange={(e) => setServicio(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-          >
-            {SERVICIOS.map((s) => (
-              <option key={s.nombre} value={s.nombre}>
-                {s.nombre} — {formatUYU(s.precio)}
-              </option>
-            ))}
-          </select>
+    <div className="space-y-6">
+      {/* 1. Service Selection Cards */}
+      <div>
+        <label className="mb-3 block text-sm font-semibold uppercase tracking-wider text-stone-500">
+          1. Selecciona el Tipo de Servicio
+        </label>
+        <div className="grid gap-4 md:grid-cols-3">
+          {SERVICIOS.map((s) => {
+            const detail = SERVICIO_DETALLES[s.nombre];
+            const isSelected = servicio === s.nombre;
+            return (
+              <button
+                key={s.nombre}
+                type="button"
+                onClick={() => setServicio(s.nombre)}
+                className={`group relative flex flex-col rounded-2xl border p-5 text-left transition-all hover:shadow-md cursor-pointer ${
+                  isSelected
+                    ? "border-amber-500 bg-amber-50/20 ring-2 ring-amber-500/20 shadow-sm"
+                    : "border-stone-200 bg-white hover:border-stone-300"
+                }`}
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-3xl">{detail?.icono || "⚙️"}</span>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    isSelected 
+                      ? "bg-amber-100 text-amber-800" 
+                      : "bg-stone-100 text-stone-600 group-hover:bg-stone-200"
+                  }`}>
+                    {formatUYU(s.precio)}
+                  </span>
+                </div>
+                <h3 className="font-bold text-stone-900 group-hover:text-amber-600 transition-colors">
+                  {s.nombre}
+                </h3>
+                <p className="mt-1 text-xs text-stone-500 line-clamp-2">
+                  {detail?.descripcion}
+                </p>
+                <ul className="mt-4 space-y-1.5 border-t border-stone-100 pt-3">
+                  {detail?.tareas.map((tarea) => (
+                    <li key={tarea} className="flex items-start gap-1.5 text-xs text-stone-600">
+                      <span className="text-amber-500 mt-0.5">•</span>
+                      <span>{tarea}</span>
+                    </li>
+                  ))}
+                </ul>
+              </button>
+            );
+          })}
         </div>
-        <div>
+      </div>
+
+      {/* 2. Bike Brand Inputs and real-time banner */}
+      <div className="grid gap-4 md:grid-cols-2 items-start">
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 space-y-3">
           <label
             htmlFor="marca"
-            className="mb-1 block text-sm font-medium text-stone-700"
+            className="block text-sm font-semibold uppercase tracking-wider text-stone-500"
           >
-            Marca de tu bicicleta
+            2. Ingresa la Marca de tu Bicicleta
           </label>
-          <input
-            id="marca"
-            type="text"
-            list="marcas"
-            value={marca}
-            onChange={(e) => setMarca(e.target.value)}
-            placeholder="Ej: Trek, Specialized, GT…"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-          />
-          <datalist id="marcas">
-            {MARCAS_REPRESENTADAS.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
+          <div className="relative">
+            <input
+              id="marca"
+              type="text"
+              list="marcas"
+              value={marca}
+              onChange={(e) => setMarca(e.target.value)}
+              placeholder="Ej: Trek, Specialized, GT..."
+              className="w-full rounded-xl border border-stone-200 px-4 py-3 text-stone-900 outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+            />
+            <datalist id="marcas">
+              {MARCAS_REPRESENTADAS.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+          </div>
+          <p className="text-xs text-stone-400">
+            Marcas oficiales obtienen descuento exclusivo en mano de obra.
+          </p>
+        </div>
+
+        {/* Dynamic Price Output Panel */}
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
+          <label className="block text-sm font-semibold uppercase tracking-wider text-stone-500">
+            Resumen de Presupuesto
+          </label>
+          <div className="flex items-baseline justify-between">
+            <span className="text-stone-600 text-sm">Servicio:</span>
+            <span className="font-semibold text-stone-800 text-sm">{servicio}</span>
+          </div>
+          <div className="flex items-baseline justify-between border-b border-stone-100 pb-3">
+            <span className="text-stone-600 text-sm">Bicicleta:</span>
+            <span className="font-semibold text-stone-800 text-sm">{marca.trim() || "Genérica"}</span>
+          </div>
+          
+          <div className="flex items-baseline justify-between pt-1">
+            <span className="text-stone-800 font-bold text-base">Precio Estimado:</span>
+            <div className="text-right">
+              <span className="text-2xl font-black text-amber-600">{formatUYU(precioEstimado)}</span>
+              <span className="block text-[10px] text-stone-400">Mano de obra (excluye repuestos)</span>
+            </div>
+          </div>
+
+          {/* Animated discount banner using clean Tailwind states */}
+          <div className={`overflow-hidden rounded-xl transition-all duration-300 ${
+            esRepresentada 
+              ? "max-h-20 bg-emerald-50 border border-emerald-100 p-3" 
+              : "max-h-0 opacity-0"
+          }`}>
+            <div className="flex gap-2 items-start text-xs text-emerald-800">
+              <span className="text-base leading-none">🎉</span>
+              <div>
+                <p className="font-bold">¡Descuento de Marca Representada!</p>
+                <p className="text-[11px] text-emerald-700">Se aplica un 10% de descuento automático en tu servicio.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl bg-stone-50 px-4 py-3 text-sm text-stone-700">
-        Precio estimado de mano de obra:{" "}
-        <span className="font-bold">{formatUYU(precioEstimado)}</span>
-        {esRepresentada ? (
-          <span className="ml-1 font-medium text-green-700">
-            — ¡{marca.trim()} es una marca representada! Se aplica un 10% de
-            descuento.
-          </span>
-        ) : (
-          <span className="ml-1 text-stone-500">
-            — Las marcas {MARCAS_REPRESENTADAS.join(", ")} tienen 10% de
-            descuento.
-          </span>
-        )}
+      {/* Action CTA */}
+      <div className="text-right">
+        <button
+          onClick={() => setMostrarWidget(true)}
+          className="w-full rounded-2xl bg-amber-500 px-8 py-4 font-bold text-stone-900 shadow-md transition-all hover:bg-amber-400 hover:shadow-lg active:scale-[0.98] sm:w-auto text-base"
+        >
+          Elegir Fecha y Hora →
+        </button>
       </div>
-
-      <button
-        onClick={() => setMostrarWidget(true)}
-        className="mt-5 w-full rounded-xl bg-amber-500 px-4 py-3 font-semibold text-stone-900 transition-colors hover:bg-amber-400 sm:w-auto sm:px-8"
-      >
-        Elegir fecha y hora →
-      </button>
     </div>
   );
 }
