@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
-CREATE POLICY "Allow public read-only access to profiles" ON public.profiles
-  FOR SELECT USING (true);
+CREATE POLICY "Allow users to read their own profile" ON public.profiles
+  FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "Allow users to update their own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS public.reservations (
   client_name TEXT NOT NULL,
   service_type TEXT NOT NULL, -- e.g., 'Ajuste y Regulación', 'Servicio Básico', 'Engrase General'
   bike_brand TEXT NOT NULL,
-  bike_details JSONB, -- Stores bike model, color, serial serial number, and issues
+  bike_details JSONB, -- Stores bike model, color, serial number, and issues
   reservation_date DATE NOT NULL,
   time_slot TIME NOT NULL,
   price NUMERIC NOT NULL CHECK (price >= 0), -- Calculated price in local currency ($ UYU)
@@ -94,5 +94,4 @@ CREATE POLICY "Allow users to read their own reservations" ON public.reservation
     )
   );
 
-CREATE POLICY "Allow system webhook / service role full access" ON public.reservations
-  FOR ALL USING (true);
+

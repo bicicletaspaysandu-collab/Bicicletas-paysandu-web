@@ -10,11 +10,17 @@ if (!global.WebSocket) {
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const hasServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY.includes('placeholder');
+const supabaseKey = hasServiceRoleKey ? process.env.SUPABASE_SERVICE_ROLE_KEY : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase URL or Anon Key environment variables.');
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase URL or key environment variables.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!hasServiceRoleKey) {
+  console.warn('⚠️ WARNING: SUPABASE_SERVICE_ROLE_KEY is not defined or is a placeholder in your server/.env file. Falling back to ANON KEY. Database operations may fail due to strict Row Level Security (RLS) policies.');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
 

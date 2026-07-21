@@ -79,7 +79,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+          className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300"
           placeholder="Ej: Bicicleta Trek Marlin 7"
         />
       </div>
@@ -96,7 +96,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
           rows={3}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+          className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300"
           placeholder="Detalles del producto…"
         />
       </div>
@@ -117,7 +117,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
             step="0.01"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300"
             placeholder="0.00"
           />
         </div>
@@ -134,7 +134,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
             required
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300"
             placeholder="https://…"
           />
         </div>
@@ -155,7 +155,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
         <button
           type="submit"
           disabled={enviando}
-          className="rounded-xl bg-stone-900 px-6 py-2.5 font-semibold text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl bg-blue-600 px-6 py-2.5 font-semibold text-white transition-all duration-300 hover:bg-blue-500 hover:scale-[1.02] active:scale-[0.98] hover:shadow-md hover:shadow-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {enviando
             ? "Guardando…"
@@ -166,7 +166,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl border border-stone-300 px-6 py-2.5 font-semibold text-stone-700 transition-colors hover:bg-stone-100"
+          className="rounded-xl border border-stone-300 px-6 py-2.5 font-semibold text-stone-700 transition-all hover:bg-stone-50 active:scale-[0.98]"
         >
           Cancelar
         </button>

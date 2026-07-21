@@ -58,7 +58,7 @@ export default function BookingWidget({ email }: { email: string }) {
         {/* Active configuration status banner */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-xl">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 text-xl">
               {SERVICIO_DETALLES[servicio]?.icono || "🚲"}
             </span>
             <div>
@@ -67,7 +67,7 @@ export default function BookingWidget({ email }: { email: string }) {
               </p>
               <p className="text-xs text-stone-500">
                 Bici: <span className="font-medium text-stone-700">{marca || "Genérica"}</span> {modeloColor && `(${modeloColor})`} · 
-                Precio: <span className="font-bold text-amber-600">{formatUYU(precioEstimado)}</span>
+                Precio: <span className="font-bold text-blue-600">{formatUYU(precioEstimado)}</span>
                 {esRepresentada && (
                   <span className="ml-1.5 inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
                     -10% Marca Oficial
@@ -145,23 +145,23 @@ export default function BookingWidget({ email }: { email: string }) {
                 key={s.nombre}
                 type="button"
                 onClick={() => setServicio(s.nombre)}
-                className={`group relative flex flex-col rounded-2xl border p-5 text-left transition-all hover:shadow-md cursor-pointer ${
+                className={`group relative flex flex-col rounded-2xl border p-5 text-left transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.99] cursor-pointer ${
                   isSelected
-                    ? "border-amber-500 bg-amber-50/20 ring-2 ring-amber-500/20 shadow-sm"
-                    : "border-stone-200 bg-white hover:border-stone-300"
+                    ? "border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-sm"
+                    : "border-stone-200 bg-white hover:border-blue-200/60"
                 }`}
               >
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-3xl">{detail?.icono || "⚙️"}</span>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                  <span className="text-3xl transition-transform duration-300 group-hover:scale-110">{detail?.icono || "⚙️"}</span>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all duration-300 ${
                     isSelected 
-                      ? "bg-amber-100 text-amber-800" 
+                      ? "bg-blue-100 text-blue-800 animate-pulse" 
                       : "bg-stone-100 text-stone-600 group-hover:bg-stone-200"
                   }`}>
                     {formatUYU(s.precio)}
                   </span>
                 </div>
-                <h3 className="font-bold text-stone-900 group-hover:text-amber-600 transition-colors">
+                <h3 className="font-bold text-stone-900 group-hover:text-blue-600 transition-colors duration-300">
                   {s.nombre}
                 </h3>
                 <p className="mt-1 text-xs text-stone-500 line-clamp-2">
@@ -170,7 +170,7 @@ export default function BookingWidget({ email }: { email: string }) {
                 <ul className="mt-4 space-y-1.5 border-t border-stone-100 pt-3">
                   {detail?.tareas.map((tarea) => (
                     <li key={tarea} className="flex items-start gap-1.5 text-xs text-stone-600">
-                      <span className="text-amber-500 mt-0.5">•</span>
+                      <span className="text-blue-500 mt-0.5 transition-transform duration-300 group-hover:scale-125">•</span>
                       <span>{tarea}</span>
                     </li>
                   ))}
@@ -200,7 +200,7 @@ export default function BookingWidget({ email }: { email: string }) {
               value={marca}
               onChange={(e) => setMarca(e.target.value)}
               placeholder="Ej: Trek, Specialized, GT..."
-              className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+              className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
             />
             <datalist id="marcas">
               {MARCAS_REPRESENTADAS.map((m) => (
@@ -220,7 +220,7 @@ export default function BookingWidget({ email }: { email: string }) {
                 value={modeloColor}
                 onChange={(e) => setModeloColor(e.target.value)}
                 placeholder="Ej. Marlin Azul"
-                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
             </div>
             <div>
@@ -233,7 +233,7 @@ export default function BookingWidget({ email }: { email: string }) {
                 value={numeroCuadro}
                 onChange={(e) => setNumeroCuadro(e.target.value)}
                 placeholder="Ej. SN12345"
-                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function BookingWidget({ email }: { email: string }) {
               onChange={(e) => setDetallesProblema(e.target.value)}
               placeholder="Ej. Cambios saltan en piñón alto, chirrido en frenos traseros..."
               rows={2}
-              className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 resize-none"
+              className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
             />
           </div>
         </div>
@@ -278,7 +278,7 @@ export default function BookingWidget({ email }: { email: string }) {
           <div className="flex items-baseline justify-between pt-1">
             <span className="text-stone-800 font-bold text-base">Precio Estimado:</span>
             <div className="text-right">
-              <span className="text-2xl font-black text-amber-600">{formatUYU(precioEstimado)}</span>
+              <span className="text-2xl font-black text-blue-600 transition-all duration-300">{formatUYU(precioEstimado)}</span>
               <span className="block text-[10px] text-stone-400">Mano de obra (excluye repuestos)</span>
             </div>
           </div>
@@ -301,10 +301,20 @@ export default function BookingWidget({ email }: { email: string }) {
       </div>
 
       {/* Action CTA */}
-      <div className="text-right">
+      <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
+        <a
+          href={`https://wa.me/59898824860?text=${encodeURIComponent(
+            `Hola Bicicletas Paysandú, quisiera consultar turno en el taller:\n- Servicio: ${servicio}\n- Bicicleta: ${marca || "Genérica"} ${modeloColor ? `(${modeloColor})` : ""}\n- Falla/Detalles: ${detallesProblema || "Mantenimiento general"}\n- Presupuesto Estimado: ${formatUYU(precioEstimado)}`
+          )}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full sm:w-auto text-center rounded-2xl bg-emerald-600 px-6 py-3.5 font-bold text-white shadow-md transition-all duration-300 hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] text-sm"
+        >
+          💬 Consultar por WhatsApp
+        </a>
         <button
           onClick={() => setMostrarWidget(true)}
-          className="w-full rounded-2xl bg-amber-500 px-8 py-4 font-bold text-stone-900 shadow-md transition-all hover:bg-amber-400 hover:shadow-lg active:scale-[0.98] sm:w-auto text-base"
+          className="w-full sm:w-auto rounded-2xl bg-blue-600 px-8 py-3.5 font-bold text-white shadow-md transition-all duration-300 hover:bg-blue-500 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-blue-500/25 text-sm cursor-pointer"
         >
           Elegir Fecha y Hora →
         </button>

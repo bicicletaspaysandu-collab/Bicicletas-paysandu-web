@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 
+import Image from "next/image";
+
 const enlacesPublicos = [
   { href: "/", label: "Inicio" },
   { href: "/catalogo", label: "Catálogo" },
@@ -31,24 +33,31 @@ export default function Navbar() {
   };
 
   const linkClase = (href: string) =>
-    `rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+    `rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
       pathname === href
-        ? "bg-stone-800 text-amber-400"
+        ? "bg-stone-800 text-blue-400"
         : "text-stone-300 hover:bg-stone-800 hover:text-white"
     }`;
 
   return (
-    <header className="sticky top-0 z-40 bg-stone-900 shadow-lg">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+    <header className="sticky top-0 z-40 bg-stone-900 shadow-md border-b border-stone-800/80">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2.5">
         <Link
           href="/"
-          className="flex items-center gap-2 text-lg font-bold tracking-tight text-white"
+          className="flex items-center gap-3 text-lg font-bold tracking-tight text-white group"
           onClick={() => setAbierto(false)}
         >
-          <span aria-hidden className="text-amber-400">
-            🚲
-          </span>
-          Bicicletas Paysandú
+          <div className="relative h-10 w-10 shrink-0 transition-transform duration-300 group-hover:scale-105">
+            <Image
+              src="/logo-white.png"
+              alt="Logo Bicicletas Paysandú"
+              width={40}
+              height={40}
+              className="h-full w-full object-contain"
+              priority
+            />
+          </div>
+          <span className="hidden sm:inline">Bicicletas Paysandú</span>
         </Link>
 
         {/* Navegación de escritorio */}
@@ -62,14 +71,14 @@ export default function Navbar() {
             (user ? (
               <button
                 onClick={cerrarSesion}
-                className="ml-2 rounded-lg border border-stone-700 px-3 py-2 text-sm font-medium text-stone-300 transition-colors hover:border-stone-500 hover:text-white"
+                className="ml-2 rounded-lg border border-stone-700 px-3 py-2 text-sm font-medium text-stone-300 transition-all hover:border-stone-500 hover:text-white active:scale-95"
               >
                 Cerrar sesión
               </button>
             ) : (
               <Link
                 href="/login"
-                className="ml-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-amber-400"
+                className="ml-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:bg-blue-500 hover:scale-[1.03] active:scale-[0.97] hover:shadow-md hover:shadow-blue-500/20"
               >
                 Ingresar
               </Link>
@@ -78,7 +87,7 @@ export default function Navbar() {
 
         {/* Botón de menú móvil */}
         <button
-          className="rounded-lg p-2 text-stone-300 hover:bg-stone-800 md:hidden"
+          className="rounded-lg p-2 text-stone-300 hover:bg-stone-800 md:hidden active:scale-95"
           onClick={() => setAbierto((v) => !v)}
           aria-label={abierto ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={abierto}
@@ -117,14 +126,14 @@ export default function Navbar() {
               (user ? (
                 <button
                   onClick={cerrarSesion}
-                  className="mt-1 rounded-lg border border-stone-700 px-3 py-2 text-left text-sm font-medium text-stone-300"
+                  className="mt-1 rounded-lg border border-stone-700 px-3 py-2 text-left text-sm font-medium text-stone-300 active:scale-[0.98]"
                 >
                   Cerrar sesión
                 </button>
               ) : (
                 <Link
                   href="/login"
-                  className="mt-1 rounded-lg bg-amber-500 px-3 py-2 text-center text-sm font-semibold text-stone-900"
+                  className="mt-1 rounded-lg bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white transition-all hover:bg-blue-500 active:scale-[0.98]"
                   onClick={() => setAbierto(false)}
                 >
                   Ingresar

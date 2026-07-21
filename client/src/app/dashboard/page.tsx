@@ -76,7 +76,7 @@ export default function DashboardPage() {
           </h2>
           <button
             onClick={cargarReservas}
-            className="text-sm font-semibold text-amber-600 hover:text-amber-500"
+            className="text-sm font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200"
           >
             Actualizar ↻
           </button>

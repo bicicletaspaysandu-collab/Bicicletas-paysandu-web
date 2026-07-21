@@ -88,11 +88,13 @@ export const createProduct = async (req, res) => {
       .single();
 
     if (error) {
+      console.error('Database error in createProduct:', error);
       return res.status(400).json({ error: 'Error al crear el producto', details: error.message });
     }
 
     res.status(201).json({ message: 'Producto creado exitosamente', product });
   } catch (error) {
+    console.error('Internal server error in createProduct:', error);
     res.status(500).json({ error: 'Error interno del servidor al crear el producto', details: error.message });
   }
 };

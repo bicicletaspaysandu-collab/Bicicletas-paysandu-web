@@ -13,7 +13,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const STOCK_CONFIGS = {
   in_stock: { label: "En Stock", dot: "bg-emerald-500", text: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-  low_stock: { label: "Pocas Unidades", dot: "bg-amber-500", text: "text-amber-700 bg-amber-50 border-amber-200" },
+  low_stock: { label: "Pocas Unidades", dot: "bg-sky-500", text: "text-sky-700 bg-sky-50 border-sky-200" },
   out_of_stock: { label: "Agotado", dot: "bg-rose-500", text: "text-rose-700 bg-rose-50 border-rose-200" },
   on_demand: { label: "Bajo Pedido", dot: "bg-blue-500", text: "text-blue-700 bg-blue-50 border-blue-200" },
 };
@@ -28,17 +28,17 @@ export default function ProductCard({ product }: { product: Product }) {
   const textMsg = encodeURIComponent(
     `Hola, estoy interesado en el producto "${product.title}" (${formatUSD(product.price)}). ¿Tienen disponibilidad?`
   );
-  const whatsappUrl = `https://wa.me/59847212345?text=${textMsg}`;
+  const whatsappUrl = `https://wa.me/59898824860?text=${textMsg}`;
 
   return (
-    <article className="animate-page-fade flex flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm transition-all hover:shadow-md hover:scale-[1.01] hover:border-stone-300">
+    <article className="group animate-page-fade flex flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 hover:border-blue-200/60">
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-stone-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={product.image_url}
           alt={product.title}
           loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-108"
         />
         
         {/* Floating Category Tag */}

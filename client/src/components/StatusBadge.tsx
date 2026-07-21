@@ -12,8 +12,8 @@ const BADGE_CONFIGS: Record<ReservationStatus, { bg: string; dot: string; label:
     label: "Cancelada",
   },
   ingresada: {
-    bg: "bg-amber-50 text-amber-800 border-amber-200",
-    dot: "bg-amber-500",
+    bg: "bg-sky-50 text-sky-800 border-sky-200",
+    dot: "bg-sky-500",
     label: "Ingresada",
   },
   en_diagnostico: {

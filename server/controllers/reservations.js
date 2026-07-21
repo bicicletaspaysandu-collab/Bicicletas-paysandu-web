@@ -99,9 +99,16 @@ export const handleCalWebhook = async (req, res) => {
         issues: issues || 'Ninguno'
       };
 
-      // Parse date and time slot
-      const reservationDate = startTime.split('T')[0];
-      const timeSlot = startTime.split('T')[1].substring(0, 5); // e.g., '09:30'
+      // Parse date and times in Uruguay timezone (America/Montevideo)
+      const startDate = new Date(startTime);
+      const optionsDate = { timeZone: 'America/Montevideo', year: 'numeric', month: '2-digit', day: '2-digit' };
+      const optionsTime = { timeZone: 'America/Montevideo', hour: '2-digit', minute: '2-digit', hour12: false };
+
+      const formatterDate = new Intl.DateTimeFormat('fr-CA', optionsDate); // outputs YYYY-MM-DD
+      const formatterTime = new Intl.DateTimeFormat('en-US', optionsTime);
+
+      const reservationDate = formatterDate.format(startDate);
+      const timeSlot = formatterTime.format(startDate);
 
       // Calculate final price (incorporating represented brand discount)
       const finalPrice = calculatePrice(serviceType, bikeBrand);
@@ -318,40 +325,3 @@ export const cancelReservation = async (req, res) => {
   }
 };
 
-/**
- * Update reservation status and mechanic notes (Admin only)
- */
-export const updateReservationStatus = async (req, res) => {
-  const { id } = req.params;
-  const { status, mechanic_notes } = req.body;
-
-  // Validation
-  const validStatuses = ['confirmed', 'cancelled', 'ingresada', 'en_diagnostico', 'en_trabajo', 'lista_para_retirar', 'entregada'];
-  if (status && !validStatuses.includes(status)) {
-    return res.status(400).json({ error: 'Estado de reserva no válido' });
-  }
-
-  const updates = {};
-  if (status !== undefined) updates.status = status;
-  if (mechanic_notes !== undefined) updates.mechanic_notes = mechanic_notes;
-
-  try {
-    const { data: reservation, error } = await supabase
-      .from('reservations')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(400).json({ error: 'Error al actualizar el estado de la reserva', details: error.message });
-    }
-    if (!reservation) {
-      return res.status(404).json({ error: 'Reserva no encontrada' });
-    }
-
-    res.json({ message: 'Estado de reserva actualizado exitosamente', reservation });
-  } catch (error) {
-    res.status(500).json({ error: 'Error interno al actualizar el estado de la reserva', details: error.message });
-  }
-};

@@ -150,7 +150,7 @@ export default function ReservationsList({
                 )}
               </div>
               <div className="text-right">
-                <p className="text-xl font-black text-amber-600">
+                <p className="text-xl font-black text-blue-600">
                   {formatUYU(r.price)}
                 </p>
                 <p className="text-[10px] text-stone-400">Total Mano de Obra</p>
@@ -177,8 +177,8 @@ export default function ReservationsList({
 
             {/* 3. Mechanic diagnostic observations */}
             {r.mechanic_notes && !isEditing && (
-              <div className="rounded-xl bg-amber-50/50 border border-amber-100 p-3 text-xs">
-                <p className="font-bold text-amber-900">👨‍🔧 Observaciones del Mecánico:</p>
+              <div className="rounded-xl bg-blue-50/50 border border-blue-100 p-3 text-xs animate-fade-in">
+                <p className="font-bold text-blue-900">👨‍🔧 Observaciones del Mecánico:</p>
                 <p className="mt-1 text-stone-700 leading-relaxed">{r.mechanic_notes}</p>
               </div>
             )}
@@ -191,7 +191,7 @@ export default function ReservationsList({
                   {/* Timeline connecting line */}
                   <div className="absolute top-1/2 left-6 right-6 h-0.5 bg-stone-200 -translate-y-1/2 z-0" />
                   <div 
-                    className="absolute top-1/2 left-6 h-0.5 bg-amber-500 -translate-y-1/2 z-0 transition-all duration-500" 
+                    className="absolute top-1/2 left-6 h-0.5 bg-blue-500 -translate-y-1/2 z-0 transition-all duration-500" 
                     style={{ width: `${(currentStepIdx / (TIMELINE_STEPS.length - 1)) * 90}%` }}
                   />
 
@@ -203,15 +203,15 @@ export default function ReservationsList({
                       <div key={step.status} className="relative z-10 flex flex-col items-center">
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm transition-all duration-300 ${
                           isCurrent 
-                            ? "border-amber-500 bg-white ring-4 ring-amber-100 scale-110" 
+                            ? "border-blue-500 bg-white ring-4 ring-blue-100 scale-110" 
                             : isPassed 
-                              ? "border-amber-500 bg-amber-500 text-white" 
+                              ? "border-blue-500 bg-blue-500 text-white" 
                               : "border-stone-200 bg-white text-stone-400"
                         }`}>
                           {step.icon}
                         </div>
                         <span className={`mt-1.5 text-[9px] font-bold tracking-tight uppercase ${
-                          isCurrent ? "text-amber-600" : isPassed ? "text-stone-800" : "text-stone-400"
+                          isCurrent ? "text-blue-600 font-extrabold" : isPassed ? "text-stone-800" : "text-stone-400"
                         }`}>
                           {step.label}
                         </span>
@@ -234,7 +234,7 @@ export default function ReservationsList({
                         <select
                           value={editStatus}
                           onChange={(e) => setEditStatus(e.target.value as ReservationStatus)}
-                          className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-xs text-stone-900 outline-none focus:border-amber-500"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                         >
                           <option value="confirmed">Confirmada</option>
                           <option value="ingresada">Ingresada al Taller</option>
@@ -252,21 +252,21 @@ export default function ReservationsList({
                           onChange={(e) => setEditNotes(e.target.value)}
                           placeholder="Recomendaciones o detalles de la reparación..."
                           rows={2}
-                          className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1 text-xs text-stone-900 outline-none focus:border-amber-500 resize-none"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
                         />
                       </div>
                     </div>
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => setEditingId(null)}
-                        className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50"
+                        className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={() => guardarEdicionAdmin(r.id)}
                         disabled={guardandoId === r.id}
-                        className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-stone-900 hover:bg-amber-400 disabled:opacity-60"
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 active:scale-95 transition-all disabled:opacity-60"
                       >
                         {guardandoId === r.id ? "Guardando..." : "Guardar Cambios"}
                       </button>

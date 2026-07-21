@@ -55,23 +55,31 @@ export default function AdminPage() {
   }, [role, cargarProductos, cargarReservas]);
 
   const guardarProducto = async (data: ProductFormData) => {
-    if (editando === "nuevo") {
-      await apiFetch("/api/catalog", {
-        method: "POST",
-        token,
-        body: JSON.stringify(data),
-      });
-      setAviso("Producto creado exitosamente");
-    } else if (editando) {
-      await apiFetch(`/api/catalog/${editando.id}`, {
-        method: "PUT",
-        token,
-        body: JSON.stringify(data),
-      });
-      setAviso("Producto actualizado exitosamente");
+    setError(null);
+    setAviso(null);
+    try {
+      if (editando === "nuevo") {
+        await apiFetch("/api/catalog", {
+          method: "POST",
+          token,
+          body: JSON.stringify(data),
+        });
+        setAviso("Producto creado exitosamente");
+      } else if (editando) {
+        await apiFetch(`/api/catalog/${editando.id}`, {
+          method: "PUT",
+          token,
+          body: JSON.stringify(data),
+        });
+        setAviso("Producto actualizado exitosamente");
+      }
+      setEditando(null);
+      cargarProductos();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error al guardar el producto"
+      );
     }
-    setEditando(null);
-    cargarProductos();
   };
 
   const eliminarProducto = async (p: Product) => {
@@ -104,10 +112,10 @@ export default function AdminPage() {
   }
 
   const tabClase = (t: Pestania) =>
-    `rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors ${
+    `rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
       pestania === t
-        ? "bg-stone-900 text-white"
-        : "bg-white text-stone-700 border border-stone-300 hover:bg-stone-100"
+        ? "bg-blue-600 text-white shadow-md shadow-blue-600/10"
+        : "bg-white text-stone-700 border border-stone-300 hover:bg-stone-50 hover:border-blue-300"
     }`;
 
   return (
@@ -170,7 +178,7 @@ export default function AdminPage() {
           ) : (
             <button
               onClick={() => setEditando("nuevo")}
-              className="rounded-xl bg-amber-500 px-6 py-3 font-semibold text-stone-900 transition-colors hover:bg-amber-400"
+              className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition-all duration-300 hover:bg-blue-500 hover:scale-[1.02] active:scale-[0.98] hover:shadow-md hover:shadow-blue-500/10 cursor-pointer"
             >
               + Nuevo producto
             </button>
@@ -239,7 +247,7 @@ export default function AdminPage() {
             </h2>
             <button
               onClick={cargarReservas}
-              className="text-sm font-semibold text-amber-600 hover:text-amber-500"
+              className="text-sm font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200"
             >
               Actualizar ↻
             </button>
