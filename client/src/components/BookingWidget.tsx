@@ -184,6 +184,7 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
         <div className="pt-2">
           <button
             onClick={() => {
+              procesandoReservaRef.current = false;
               setReservaExitosa(false);
               setMostrarWidget(false);
             }}
@@ -221,7 +222,10 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
             </div>
           </div>
           <button
-            onClick={() => setMostrarWidget(false)}
+            onClick={() => {
+              procesandoReservaRef.current = false;
+              setMostrarWidget(false);
+            }}
             className="rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-800 transition-colors"
           >
             ← Editar Ficha
