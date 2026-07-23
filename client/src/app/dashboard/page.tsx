@@ -102,6 +102,8 @@ export default function DashboardPage() {
           <ReservationsList
             reservations={reservas ?? []}
             onCancel={cancelarReserva}
+            token={token}
+            onUpdate={cargarReservas}
           />
         )}
       </section>

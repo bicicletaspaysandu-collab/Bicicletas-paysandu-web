@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Reservation, ReservationStatus } from "@/lib/types";
+import type { Reservation, ReservationStatus, Role } from "@/lib/types";
 import { formatFecha, formatHora, formatUYU } from "@/lib/format";
 import StatusBadge from "./StatusBadge";
 import { useAuth } from "@/lib/auth-context";
@@ -15,6 +15,8 @@ interface Props {
   onCancel?: (id: string) => Promise<void>;
   /** Callback opcional cuando se actualiza el estado (admin) */
   onUpdate?: () => void;
+  role?: Role;
+  token?: string | null;
 }
 
 const TIMELINE_STEPS: { status: ReservationStatus; label: string; icon: string }[] = [
@@ -45,8 +47,12 @@ export default function ReservationsList({
   mostrarCliente = false,
   onCancel,
   onUpdate,
+  role: propRole,
+  token: propToken,
 }: Props) {
-  const { token, role } = useAuth();
+  const { token: authToken, role: authRole } = useAuth();
+  const token = propToken ?? authToken;
+  const role = propRole ?? authRole;
   const [cancelando, setCancelando] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardandoId, setGuardandoId] = useState<string | null>(null);
@@ -151,7 +157,7 @@ export default function ReservationsList({
         const cancelable = esCancelable(r);
         const activa = r.status !== "cancelled" && r.status !== "entregada";
         const currentStepIdx = getTimelineIndex(r.status);
-        const esAdmin = role === "admin" && mostrarCliente;
+        const esAdmin = role === "admin" || mostrarCliente;
         const isEditing = editingId === r.id;
 
         const extraCharges = r.bike_details?.extra_charges ?? r.extra_charges ?? 0;

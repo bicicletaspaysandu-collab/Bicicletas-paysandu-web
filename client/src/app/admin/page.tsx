@@ -322,7 +322,7 @@ export default function AdminPage() {
                   />
                 ))
               ) : (
-                <ReservationsList reservations={reservas} mostrarCliente onUpdate={cargarReservas} />
+                <ReservationsList reservations={reservas} mostrarCliente role={role} token={token} onUpdate={cargarReservas} />
               )}
             </div>
           ) : (
