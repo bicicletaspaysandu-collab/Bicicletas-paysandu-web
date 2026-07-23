@@ -50,6 +50,28 @@ export default function ReservationsList({
   const [cancelando, setCancelando] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardandoId, setGuardandoId] = useState<string | null>(null);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+
+  const eliminarReservaAdmin = async (id: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar esta reserva? Se cancelará en Cal.com y se borrará de la base de datos.")) {
+      return;
+    }
+    setEliminandoId(id);
+    try {
+      await apiFetch(`/api/reservations/${id}`, {
+        method: "DELETE",
+        token,
+      });
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      setErrores((prev) => ({
+        ...prev,
+        [id]: err instanceof Error ? err.message : "Error al eliminar la reserva",
+      }));
+    } finally {
+      setEliminandoId(null);
+    }
+  };
 
   // Admin edit states
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -159,9 +181,21 @@ export default function ReservationsList({
                   Bicicleta: <span className="font-semibold text-stone-800">{r.bike_brand}</span>
                 </p>
                 {mostrarCliente && (
-                  <p className="text-xs text-stone-600">
-                    Cliente: <span className="font-semibold text-stone-800">{r.client_name || "Sin nombre"}</span> ({r.client_email})
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-stone-600 pt-0.5">
+                    <span>
+                      Cliente: <span className="font-semibold text-stone-800">{r.client_name || "Sin nombre"}</span> ({r.client_email})
+                    </span>
+                    {(r.bike_details?.phone_number || r.phone_number) && (
+                      <a
+                        href={`https://wa.me/${(r.bike_details?.phone_number || r.phone_number || "").replace(/[^0-9]/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200"
+                      >
+                        📞 {r.bike_details?.phone_number || r.phone_number}
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="text-right">
@@ -339,12 +373,21 @@ export default function ReservationsList({
                     </div>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => iniciarEdicion(r)}
-                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
-                  >
-                    🛠️ Gestionar Trabajo, Gastos y Notas
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => iniciarEdicion(r)}
+                      className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                    >
+                      🛠️ Gestionar Trabajo, Gastos y Notas
+                    </button>
+                    <button
+                      onClick={() => eliminarReservaAdmin(r.id)}
+                      disabled={eliminandoId === r.id}
+                      className="rounded-lg border border-red-200 bg-red-50/60 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100/70 active:scale-95 transition-all disabled:opacity-60"
+                    >
+                      {eliminandoId === r.id ? "Eliminando..." : "🗑️ Eliminar y Cancelar en Cal.com"}
+                    </button>
+                  </div>
                 )}
               </div>
             )}

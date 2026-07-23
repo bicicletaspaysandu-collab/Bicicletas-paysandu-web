@@ -26,6 +26,7 @@ export interface BikeDetails {
   model_color?: string;
   serial_number?: string;
   issues?: string;
+  phone_number?: string;
   extra_charges?: number;
   extra_charges_reason?: string;
   completion_note?: string;
@@ -38,6 +39,7 @@ export interface Reservation {
   cal_booking_uid: string | null;
   client_email: string;
   client_name: string;
+  phone_number?: string;
   service_type: string;
   bike_brand: string;
   bike_details: BikeDetails | null;

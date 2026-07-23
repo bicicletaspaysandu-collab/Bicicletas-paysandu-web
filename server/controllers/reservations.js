@@ -480,4 +480,65 @@ export const createDirectReservation = async (req, res) => {
   }
 };
 
+/**
+ * Delete / Cancel a reservation permanently (Admin only)
+ * Cancels the booking on Cal.com API and removes/cancels it in Supabase DB.
+ */
+export const deleteReservation = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // 1. Fetch target reservation
+    const { data: reservation, error: fetchErr } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !reservation) {
+      return res.status(404).json({ error: 'Reserva no encontrada' });
+    }
+
+    // 2. Sync cancellation to Cal.com API if cal_booking_uid exists and CAL_API_KEY is configured
+    const calApiKey = process.env.CAL_API_KEY;
+    if (calApiKey && reservation.cal_booking_uid) {
+      try {
+        await fetch(`https://api.cal.com/v2/bookings/${reservation.cal_booking_uid}/decline`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${calApiKey}`,
+            'Content-Type': 'application/json',
+            'cal-api-version': '2024-08-13'
+          },
+          body: JSON.stringify({
+            reason: 'Eliminado por el administrador del sistema'
+          })
+        });
+        console.log(`Cal.com booking ${reservation.cal_booking_uid} cancelled via API before DB deletion.`);
+      } catch (calErr) {
+        console.warn('Error cancelando en la API de Cal.com:', calErr);
+      }
+    }
+
+    // 3. Delete reservation from Supabase DB (or mark status as cancelled)
+    const { error: deleteErr } = await supabase
+      .from('reservations')
+      .delete()
+      .eq('id', id);
+
+    if (deleteErr) {
+      console.error('Error borrando reserva de Supabase:', deleteErr);
+      await supabase
+        .from('reservations')
+        .update({ status: 'cancelled' })
+        .eq('id', id);
+    }
+
+    return res.json({ message: 'Reserva eliminada exitosamente y cancelada en Cal.com' });
+  } catch (error) {
+    console.error('Error en deleteReservation:', error);
+    res.status(500).json({ error: 'Error interno al eliminar la reserva' });
+  }
+};
+
 

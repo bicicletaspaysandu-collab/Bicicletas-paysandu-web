@@ -43,6 +43,8 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
   const [modeloColor, setModeloColor] = useState("");
   const [numeroCuadro, setNumeroCuadro] = useState("");
   const [detallesProblema, setDetallesProblema] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [errorTelefono, setErrorTelefono] = useState<string | null>(null);
   const [mostrarWidget, setMostrarWidget] = useState(false);
   const [reservaExitosa, setReservaExitosa] = useState(false);
   const [errorSincronizacion, setErrorSincronizacion] = useState<string | null>(null);
@@ -114,6 +116,7 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
             model_color: modeloColor || "No especificado",
             serial_number: numeroCuadro || "No especificado",
             issues: detallesProblema || "Ninguno",
+            phone_number: telefono || "No especificado",
           },
           reservation_date: fecha,
           time_slot: hora,
@@ -354,6 +357,28 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
 
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Teléfono / WhatsApp de contacto *
+              </label>
+              <input
+                type="tel"
+                required
+                value={telefono}
+                onChange={(e) => {
+                  setTelefono(e.target.value);
+                  if (e.target.value.trim()) setErrorTelefono(null);
+                }}
+                placeholder="Ej: 099 123 456"
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              />
+              {errorTelefono && (
+                <p className="mt-1 text-[11px] font-semibold text-red-600 animate-fade-in">
+                  ⚠️ {errorTelefono}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
                 Fallas o Problemas Observados
               </label>
               <input
@@ -369,7 +394,14 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
           <div className="pt-2 flex justify-end">
             <button
               type="button"
-              onClick={() => setMostrarWidget(true)}
+              onClick={() => {
+                if (!telefono.trim()) {
+                  setErrorTelefono("El número de teléfono / WhatsApp es obligatorio para agendar.");
+                  return;
+                }
+                setErrorTelefono(null);
+                setMostrarWidget(true);
+              }}
               className="rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-blue-500 active:scale-95 transition-all shadow-md shadow-blue-600/10"
             >
               Continuar al Calendario de Cal.com →

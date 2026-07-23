@@ -5,7 +5,8 @@ import {
   getAllReservations,
   cancelReservation,
   getOccupiedSlots,
-  createDirectReservation
+  createDirectReservation,
+  deleteReservation
 } from '../controllers/reservations.js';
 import { requireAuth, requireAdmin, requireClient } from '../middleware/auth.js';
 
@@ -17,7 +18,7 @@ router.post('/webhook', handleCalWebhook);
 // Get occupied time slots for a date
 router.get('/occupied-slots', getOccupiedSlots);
 
-// Create a direct reservation (Native Funnel)
+// Create a direct reservation (Native Funnel / Invisible Cal.com Funnel)
 router.post('/', requireAuth, requireClient, createDirectReservation);
 
 // Client reservations
@@ -28,5 +29,8 @@ router.get('/', requireAuth, requireAdmin, getAllReservations);
 
 // Authenticated route to cancel or update a reservation
 router.put('/:id/cancel', requireAuth, cancelReservation);
+
+// Admin-only route to delete reservation permanently and cancel in Cal.com
+router.delete('/:id', requireAuth, requireAdmin, deleteReservation);
 
 export default router;
