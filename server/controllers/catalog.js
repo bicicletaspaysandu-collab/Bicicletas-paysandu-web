@@ -49,10 +49,10 @@ export const getProductById = async (req, res) => {
  * Create a new product (Admin only)
  */
 export const createProduct = async (req, res) => {
-  const { title, description, price, image_url, category, stock_status } = req.body;
+  const { title, description, price, image_url, images, category, stock_status } = req.body;
 
   // Validation
-  if (!title || !price || !image_url) {
+  if (!title || !price || (!image_url && (!images || images.length === 0))) {
     return res.status(400).json({ error: 'Los campos título, precio e imagen son obligatorios' });
   }
 
@@ -71,21 +71,36 @@ export const createProduct = async (req, res) => {
     return res.status(400).json({ error: 'Estado de stock no válido' });
   }
 
+  const mainImage = image_url || (images && images.length > 0 ? images[0] : '');
+
+  const newProductPayload = {
+    title,
+    description,
+    price: parsedPrice, // Processed and saved in USD
+    image_url: mainImage,
+    images: images || [mainImage],
+    category: category || 'bicicleta',
+    stock_status: stock_status || 'in_stock'
+  };
+
   try {
-    const { data: product, error } = await supabase
+    let { data: product, error } = await supabase
       .from('products')
-      .insert([
-        {
-          title,
-          description,
-          price: parsedPrice, // Processed and saved in USD
-          image_url,
-          category: category || 'bicicleta',
-          stock_status: stock_status || 'in_stock'
-        }
-      ])
+      .insert([newProductPayload])
       .select()
       .single();
+
+    // Fallback if SQL migration ALTER TABLE public.products ADD COLUMN images TEXT[] hasn't been executed yet
+    if (error && (error.message?.includes('images') || error.code === 'PGRST204')) {
+      delete newProductPayload.images;
+      const fallback = await supabase
+        .from('products')
+        .insert([newProductPayload])
+        .select()
+        .single();
+      product = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       console.error('Database error in createProduct:', error);
@@ -104,12 +119,13 @@ export const createProduct = async (req, res) => {
  */
 export const updateProduct = async (req, res) => {
   const { id } = req.params;
-  const { title, description, price, image_url, category, stock_status } = req.body;
+  const { title, description, price, image_url, images, category, stock_status } = req.body;
 
   const updates = {};
   if (title !== undefined) updates.title = title;
   if (description !== undefined) updates.description = description;
   if (image_url !== undefined) updates.image_url = image_url;
+  if (images !== undefined) updates.images = images;
 
   if (category !== undefined) {
     const validCategories = ['bicicleta', 'accesorio', 'repuesto', 'indumentaria'];
@@ -136,12 +152,24 @@ export const updateProduct = async (req, res) => {
   }
 
   try {
-    const { data: product, error } = await supabase
+    let { data: product, error } = await supabase
       .from('products')
       .update(updates)
       .eq('id', id)
       .select()
       .single();
+
+    if (error && (error.message?.includes('images') || error.code === 'PGRST204')) {
+      delete updates.images;
+      const fallback = await supabase
+        .from('products')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      product = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       return res.status(400).json({ error: 'Error al actualizar el producto', details: error.message });

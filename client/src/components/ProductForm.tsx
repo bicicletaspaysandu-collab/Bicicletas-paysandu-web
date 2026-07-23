@@ -1,31 +1,73 @@
 "use client";
 
 import { useState } from "react";
-import type { Product } from "@/lib/types";
+import type { Product, ProductCategory, StockStatus } from "@/lib/types";
 
 export interface ProductFormData {
   title: string;
   description: string;
   price: number;
   image_url: string;
+  images?: string[];
+  category?: ProductCategory;
+  stock_status?: StockStatus;
 }
 
 interface Props {
   /** Producto existente si se está editando; null para crear uno nuevo */
-  producto?: Product | null;
+  initialData?: ProductFormData;
   onSubmit: (data: ProductFormData) => Promise<void>;
   onCancel: () => void;
 }
 
-export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
-  const [title, setTitle] = useState(producto?.title ?? "");
-  const [description, setDescription] = useState(producto?.description ?? "");
+export default function ProductForm({ initialData, onSubmit, onCancel }: Props) {
+  const [title, setTitle] = useState(initialData?.title ?? "");
+  const [description, setDescription] = useState(initialData?.description ?? "");
   const [price, setPrice] = useState(
-    producto ? String(producto.price) : ""
+    initialData ? String(initialData.price) : ""
   );
-  const [imageUrl, setImageUrl] = useState(producto?.image_url ?? "");
+  const [imageUrl, setImageUrl] = useState(initialData?.image_url ?? "");
+  const [images, setImages] = useState<string[]>(initialData?.images || (initialData?.image_url ? [initialData.image_url] : []));
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  // Handle local file selection and conversion to base64 preview
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setImages((prev) => {
+            const next = [...prev, result];
+            if (!imageUrl) setImageUrl(result);
+            return next;
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAddUrl = () => {
+    if (!imageUrl.trim()) return;
+    if (!images.includes(imageUrl.trim())) {
+      setImages((prev) => [...prev, imageUrl.trim()]);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length > 0) setImageUrl(next[0]);
+      else setImageUrl("");
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,13 +79,20 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
       return;
     }
 
+    const mainImg = images.length > 0 ? images[0] : imageUrl.trim();
+    if (!mainImg) {
+      setError("Debes subir al menos una imagen para el producto");
+      return;
+    }
+
     setEnviando(true);
     try {
       await onSubmit({
         title: title.trim(),
         description: description.trim(),
         price: parsed,
-        image_url: imageUrl.trim(),
+        image_url: mainImg,
+        images: images.length > 0 ? images : [mainImg],
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al guardar");
@@ -57,7 +106,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
       className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
     >
       <h3 className="text-lg font-bold text-stone-900">
-        {producto ? "Editar producto" : "Nuevo producto"}
+        {initialData ? "Editar producto" : "Nuevo producto"}
       </h3>
 
       {error && (
@@ -71,7 +120,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
           htmlFor="titulo"
           className="mb-1 block text-sm font-medium text-stone-700"
         >
-          Título *
+          Título del producto *
         </label>
         <input
           id="titulo"
@@ -80,7 +129,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300"
-          placeholder="Ej: Bicicleta Trek Marlin 7"
+          placeholder="Ej: Bicicleta Specialized Rockhopper 29"
         />
       </div>
 
@@ -97,7 +146,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300"
-          placeholder="Detalles del producto…"
+          placeholder="Detalles técnicos y equipamiento…"
         />
       </div>
 
@@ -121,37 +170,84 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
             placeholder="0.00"
           />
         </div>
+
         <div>
-          <label
-            htmlFor="imagen"
-            className="mb-1 block text-sm font-medium text-stone-700"
-          >
-            URL de la imagen *
+          <label className="mb-1 block text-sm font-medium text-stone-700">
+            Subir Imágenes (Estilo Mercado Libre) *
           </label>
           <input
-            id="imagen"
-            type="url"
-            required
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300"
-            placeholder="https://…"
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileUpload}
+            className="w-full text-xs text-stone-600 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-4 file:py-2.5 file:text-xs file:font-semibold file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
           />
         </div>
       </div>
 
-      {imageUrl.trim() && (
-        <div className="overflow-hidden rounded-xl border border-stone-200">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt="Vista previa de la imagen"
-            className="h-40 w-full object-cover"
+      {/* URL Fallback option */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-stone-500">
+          O agregar por URL directa de imagen:
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-xs text-stone-900 outline-none focus:border-blue-500"
+            placeholder="https://..."
           />
+          <button
+            type="button"
+            onClick={handleAddUrl}
+            className="rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100"
+          >
+            + Agregar
+          </button>
+        </div>
+      </div>
+
+      {/* Mercado Libre Style Image Gallery Previews */}
+      {images.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <span className="block text-xs font-bold text-stone-700">
+            Fotos del producto ({images.length}) · La primera es la foto principal
+          </span>
+          <div className="flex flex-wrap gap-3">
+            {images.map((img, idx) => (
+              <div
+                key={idx}
+                className={`relative group h-24 w-24 overflow-hidden rounded-xl border-2 transition-all ${
+                  idx === 0 ? "border-blue-500 ring-2 ring-blue-100" : "border-stone-200"
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img}
+                  alt={`Preview ${idx + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                {idx === 0 && (
+                  <span className="absolute top-1 left-1 rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
+                    Principal
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(idx)}
+                  className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Eliminar foto"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-3 pt-4">
         <button
           type="submit"
           disabled={enviando}
@@ -159,7 +255,7 @@ export default function ProductForm({ producto, onSubmit, onCancel }: Props) {
         >
           {enviando
             ? "Guardando…"
-            : producto
+            : initialData
               ? "Guardar cambios"
               : "Crear producto"}
         </button>

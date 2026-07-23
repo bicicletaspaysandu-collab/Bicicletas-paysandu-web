@@ -1,12 +1,19 @@
 "use client";
 
-import Cal from "@calcom/embed-react";
-import { useState } from "react";
+import Cal, { getCalApi } from "@calcom/embed-react";
+import { useEffect, useState, useRef } from "react";
 import { MARCAS_REPRESENTADAS, SERVICIOS } from "@/lib/types";
 import { formatUYU } from "@/lib/format";
+import { apiFetch } from "@/lib/api";
 
 const CAL_LINK =
-  process.env.NEXT_PUBLIC_CAL_LINK ?? "bicicletas-paysandu/taller";
+  process.env.NEXT_PUBLIC_CAL_LINK ?? "rodrigo-navarro-tu5qfn/30min";
+
+interface BookingWidgetProps {
+  email: string;
+  token?: string | null;
+  onBookingSuccess?: () => void;
+}
 
 // Detailed descriptions for each service to populate card items
 const SERVICIO_DETALLES: Record<string, { icono: string; descripcion: string; tareas: string[] }> = {
@@ -28,18 +35,20 @@ const SERVICIO_DETALLES: Record<string, { icono: string; descripcion: string; ta
 };
 
 /**
- * Widget de agendamiento del taller.
- * Cuenta con un selector interactivo de tarjetas de servicios, detección
- * en tiempo real de marcas representadas para descuentos con micro-animaciones,
- * y pre-relleno de campos y ficha técnica de ingreso en Cal.com.
+ * Widget de agendamiento con Cal.com + Embudo Invisible de Guardado en Base de Datos.
  */
-export default function BookingWidget({ email }: { email: string }) {
+export default function BookingWidget({ email, token, onBookingSuccess }: BookingWidgetProps) {
   const [servicio, setServicio] = useState<string>(SERVICIOS[1].nombre); // Default to Servicio Básico
   const [marca, setMarca] = useState("");
   const [modeloColor, setModeloColor] = useState("");
   const [numeroCuadro, setNumeroCuadro] = useState("");
   const [detallesProblema, setDetallesProblema] = useState("");
   const [mostrarWidget, setMostrarWidget] = useState(false);
+  const [reservaExitosa, setReservaExitosa] = useState(false);
+  const [errorSincronizacion, setErrorSincronizacion] = useState<string | null>(null);
+
+  // Lock ref to prevent double execution from concurrent event listeners
+  const procesandoReservaRef = useRef(false);
 
   const servicioInfo = SERVICIOS.find((s) => s.nombre === servicio);
   const esRepresentada = MARCAS_REPRESENTADAS.some(
@@ -52,10 +61,145 @@ export default function BookingWidget({ email }: { email: string }) {
       : servicioInfo.precio
     : 0;
 
+  // Embudo Invisible: Escuchar el evento de reserva completada en Cal.com
+  useEffect(() => {
+    let cancelado = false;
+
+    const guardarReservaEnBaseDeDatos = async (details: any) => {
+      if (cancelado || procesandoReservaRef.current) return;
+      procesandoReservaRef.current = true;
+      console.log("🔥 Embudo Invisible Cal.com - Evento capturado:", details);
+
+      try {
+        // Extraer fecha y hora del payload de Cal.com
+        let fecha = "";
+        let hora = "";
+        let bookingId = details?.bookingId || details?.id || details?.data?.bookingId || details?.data?.id || Math.floor(Date.now() % 2000000000);
+        let bookingUid = details?.uid || details?.data?.uid || `cal_${Date.now()}`;
+
+        const rawDate = details?.startTime || details?.start || details?.date || details?.data?.startTime || details?.data?.start || details?.data?.date;
+
+        if (rawDate) {
+          try {
+            const dt = new Date(rawDate);
+            if (!isNaN(dt.getTime())) {
+              fecha = dt.toISOString().split("T")[0];
+              const h = String(dt.getHours()).padStart(2, "0");
+              const m = String(dt.getMinutes()).padStart(2, "0");
+              hora = `${h}:${m}:00`;
+            }
+          } catch {
+            // parsing error fallback
+          }
+        }
+
+        if (!fecha) {
+          const hoy = new Date();
+          fecha = hoy.toISOString().split("T")[0];
+        }
+
+        if (!hora || hora === "00:00:00") {
+          const rawTime = details?.time || details?.time_slot || details?.data?.time;
+          if (rawTime) {
+            hora = `${String(rawTime).substring(0, 5)}:00`;
+          } else {
+            hora = "10:00:00";
+          }
+        }
+
+        const payload = {
+          service_type: servicio || "Servicio Básico",
+          bike_brand: marca || "Genérica",
+          bike_details: {
+            model_color: modeloColor || "No especificado",
+            serial_number: numeroCuadro || "No especificado",
+            issues: detallesProblema || "Ninguno",
+          },
+          reservation_date: fecha,
+          time_slot: hora,
+          client_name: details?.attendees?.[0]?.name || details?.data?.attendees?.[0]?.name || (email ? email.split("@")[0] : "Cliente Taller"),
+          cal_booking_id: Number(bookingId) || Math.floor(Date.now() % 2000000000),
+          cal_booking_uid: String(bookingUid),
+        };
+
+        // Guardar directamente en la base de datos vía Express / Supabase
+        await apiFetch("/api/reservations", {
+          method: "POST",
+          token,
+          body: JSON.stringify(payload),
+        });
+
+        setReservaExitosa(true);
+        if (onBookingSuccess) onBookingSuccess();
+      } catch (err) {
+        console.warn("Aviso en Embudo Invisible:", err);
+      }
+    };
+
+    // 1. Configurar listener oficial mediante la API de Cal.com
+    (async () => {
+      try {
+        const cal = await getCalApi();
+        cal("on", {
+          action: "bookingSuccessful",
+          callback: (e: any) => {
+            guardarReservaEnBaseDeDatos(e.detail?.data || e.detail);
+          },
+        });
+      } catch {
+        // Ignorar si el script de Cal API tarda en inicializar
+      }
+    })();
+
+    // 2. Listener secundario de respaldo por window.postMessage (por si el iframe usa postMessage directo)
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (
+        data?.type === "CAL:bookingSuccessful" ||
+        data?.action === "bookingSuccessful" ||
+        data?.type === "bookingSuccessful"
+      ) {
+        guardarReservaEnBaseDeDatos(data?.data || data);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      cancelado = true;
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [servicio, marca, modeloColor, numeroCuadro, detallesProblema, email, token, onBookingSuccess]);
+
+  if (reservaExitosa) {
+    return (
+      <div className="rounded-3xl border border-green-200 bg-white p-8 text-center shadow-md animate-fade-in space-y-4">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
+          🎉
+        </div>
+        <h3 className="text-2xl font-bold text-stone-900">¡Reserva Guardada en la Base de Datos!</h3>
+        <p className="text-sm text-stone-600 max-w-md mx-auto">
+          Tu agendamiento en Cal.com ha sido capturado por el embudo e ingresado a tu historial de reparaciones y al panel del taller.
+        </p>
+        <div className="pt-2">
+          <button
+            onClick={() => {
+              setReservaExitosa(false);
+              setMostrarWidget(false);
+            }}
+            className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 transition-all shadow-sm"
+          >
+            Agendar otro turno
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (mostrarWidget) {
     return (
       <div className="animate-fade-in space-y-4">
-        {/* Active configuration status banner */}
+        {/* Banner de estado de la ficha técnica */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 text-xl">
@@ -66,8 +210,8 @@ export default function BookingWidget({ email }: { email: string }) {
                 {servicio}
               </p>
               <p className="text-xs text-stone-500">
-                Bici: <span className="font-medium text-stone-700">{marca || "Genérica"}</span> {modeloColor && `(${modeloColor})`} · 
-                Precio: <span className="font-bold text-blue-600">{formatUYU(precioEstimado)}</span>
+                Bici: <span className="font-medium text-stone-700">{marca || "Genérica"}</span> {modeloColor && `(${modeloColor})`} ·
+                Precio estimado: <span className="font-bold text-blue-600">{formatUYU(precioEstimado)}</span>
                 {esRepresentada && (
                   <span className="ml-1.5 inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
                     -10% Marca Oficial
@@ -80,11 +224,17 @@ export default function BookingWidget({ email }: { email: string }) {
             onClick={() => setMostrarWidget(false)}
             className="rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-800 transition-colors"
           >
-            ← Cambiar Ficha
+            ← Editar Ficha
           </button>
         </div>
 
-        {/* Embedded Cal.com scheduler */}
+        {errorSincronizacion && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700">
+            {errorSincronizacion}
+          </div>
+        )}
+
+        {/* Iframe oficial de Cal.com */}
         <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm transition-all">
           <Cal
             calLink={CAL_LINK}
@@ -92,232 +242,136 @@ export default function BookingWidget({ email }: { email: string }) {
             config={{
               email,
               theme: "light",
-              // Pre-fill answers to match Cal.com slugs in webhook
-              responses: {
-                "service-type": servicio,
-                "service_type": servicio,
-                "servicio": servicio,
-                "bike-brand": marca || "Genérica",
-                "bike_brand": marca || "Genérica",
-                "marca": marca || "Genérica",
-                "modelo-color": modeloColor || "No especificado",
-                "modelo_color": modeloColor || "No especificado",
-                "modelo": modeloColor || "No especificado",
-                "color": modeloColor || "No especificado",
-                "numero-cuadro": numeroCuadro || "No especificado",
-                "numero_cuadro": numeroCuadro || "No especificado",
-                "cuadro": numeroCuadro || "No especificado",
-                "serie": numeroCuadro || "No especificado",
-                "frame-number": numeroCuadro || "No especificado",
-                "frame_number": numeroCuadro || "No especificado",
-                "serial": numeroCuadro || "No especificado",
-                "detalles-problema": detallesProblema || "Ninguno",
-                "detalles_problema": detallesProblema || "Ninguno",
-                "problema": detallesProblema || "Ninguno",
-                "falla": detallesProblema || "Ninguno",
-                "issues": detallesProblema || "Ninguno",
-                "comentario": detallesProblema || "Ninguno",
-                "detalles": detallesProblema || "Ninguno"
-              }
             }}
           />
         </div>
-        <p className="text-center text-xs text-stone-400">
-          Al agendar el turno en el calendario, la reserva se registrará en tu historial.
-        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* 1. Service Selection Cards */}
-      <div>
-        <label className="mb-3 block text-sm font-semibold uppercase tracking-wider text-stone-500">
-          1. Selecciona el Tipo de Servicio
-        </label>
-        <div className="grid gap-4 md:grid-cols-3">
-          {SERVICIOS.map((s) => {
-            const detail = SERVICIO_DETALLES[s.nombre];
-            const isSelected = servicio === s.nombre;
-            return (
-              <button
-                key={s.nombre}
-                type="button"
-                onClick={() => setServicio(s.nombre)}
-                className={`group relative flex flex-col rounded-2xl border p-5 text-left transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.99] cursor-pointer ${
-                  isSelected
-                    ? "border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-sm"
-                    : "border-stone-200 bg-white hover:border-blue-200/60"
-                }`}
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-3xl transition-transform duration-300 group-hover:scale-110">{detail?.icono || "⚙️"}</span>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all duration-300 ${
-                    isSelected 
-                      ? "bg-blue-100 text-blue-800 animate-pulse" 
-                      : "bg-stone-100 text-stone-600 group-hover:bg-stone-200"
-                  }`}>
-                    {formatUYU(s.precio)}
-                  </span>
-                </div>
-                <h3 className="font-bold text-stone-900 group-hover:text-blue-600 transition-colors duration-300">
-                  {s.nombre}
-                </h3>
-                <p className="mt-1 text-xs text-stone-500 line-clamp-2">
-                  {detail?.descripcion}
-                </p>
-                <ul className="mt-4 space-y-1.5 border-t border-stone-100 pt-3">
-                  {detail?.tareas.map((tarea) => (
-                    <li key={tarea} className="flex items-start gap-1.5 text-xs text-stone-600">
-                      <span className="text-blue-500 mt-0.5 transition-transform duration-300 group-hover:scale-125">•</span>
-                      <span>{tarea}</span>
-                    </li>
-                  ))}
-                </ul>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 2. Bike Details and real-time banner */}
-      <div className="grid gap-4 md:grid-cols-2 items-start">
-        {/* Technical Intake Form */}
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
-          <label className="block text-sm font-semibold uppercase tracking-wider text-stone-500">
-            2. Ficha Técnica de Ingreso
+      {/* Paso 1: Ficha de Bicicleta y Servicio */}
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <label className="mb-3 block text-xs font-bold uppercase tracking-wider text-stone-400">
+            1. Seleccioná el tipo de servicio
           </label>
-          
-          <div>
-            <label htmlFor="marca" className="mb-1 block text-xs font-semibold text-stone-600">
-              Marca
-            </label>
-            <input
-              id="marca"
-              type="text"
-              list="marcas"
-              value={marca}
-              onChange={(e) => setMarca(e.target.value)}
-              placeholder="Ej: Trek, Specialized, GT..."
-              className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-            />
-            <datalist id="marcas">
-              {MARCAS_REPRESENTADAS.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
-          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {SERVICIOS.map((s) => {
+              const seleccionado = servicio === s.nombre;
+              const info = SERVICIO_DETALLES[s.nombre];
+              return (
+                <div
+                  key={s.nombre}
+                  onClick={() => setServicio(s.nombre)}
+                  className={`relative flex flex-col justify-between rounded-2xl border p-4 cursor-pointer transition-all duration-300 ${
+                    seleccionado
+                      ? "border-blue-500 bg-white ring-4 ring-blue-500/10 shadow-md scale-[1.02]"
+                      : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-2xl">{info?.icono || "⚙️"}</span>
+                      {s.nombre === "Servicio Básico" && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-extrabold text-blue-700 uppercase">
+                          Más Popular
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="font-bold text-stone-900 text-sm">{s.nombre}</h4>
+                    <p className="mt-1 text-[11px] text-stone-500 leading-relaxed">
+                      {info?.descripcion}
+                    </p>
+                  </div>
 
-          <div className="grid gap-3 grid-cols-2">
+                  <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-400">Precio base</span>
+                    <span className="text-base font-black text-blue-600">
+                      {formatUYU(s.precio)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider">
+            2. Datos e Historial Técnico de la Bicicleta
+          </h3>
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="modeloColor" className="mb-1 block text-xs font-semibold text-stone-600">
-                Modelo / Color
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Marca de la bicicleta *
               </label>
               <input
-                id="modeloColor"
+                type="text"
+                value={marca}
+                onChange={(e) => setMarca(e.target.value)}
+                placeholder="Ej: Specialized, Trek, Giant, Scott..."
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              />
+              {esRepresentada && (
+                <p className="mt-1 text-[11px] font-semibold text-emerald-600 animate-fade-in">
+                  ✨ ¡Descuento oficial del 10% aplicado automáticamente!
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Modelo y Color
+              </label>
+              <input
                 type="text"
                 value={modeloColor}
                 onChange={(e) => setModeloColor(e.target.value)}
-                placeholder="Ej. Marlin Azul"
-                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                placeholder="Ej: Rockhopper 29 - Negro Mate"
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
               />
             </div>
+
             <div>
-              <label htmlFor="numeroCuadro" className="mb-1 block text-xs font-semibold text-stone-600">
-                Nº Serie / Cuadro (Opcional)
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Número de Serie del Cuadro
               </label>
               <input
-                id="numeroCuadro"
                 type="text"
                 value={numeroCuadro}
                 onChange={(e) => setNumeroCuadro(e.target.value)}
-                placeholder="Ej. SN12345"
-                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                placeholder="Ej: WSBC601049..."
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Fallas o Problemas Observados
+              </label>
+              <input
+                type="text"
+                value={detallesProblema}
+                onChange={(e) => setDetallesProblema(e.target.value)}
+                placeholder="Ej: Ruido en la caja de centro, cambio salta"
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
               />
             </div>
           </div>
 
-          <div>
-            <label htmlFor="detallesProblema" className="mb-1 block text-xs font-semibold text-stone-600">
-              ¿Qué falla o detalle técnico tiene?
-            </label>
-            <textarea
-              id="detallesProblema"
-              value={detallesProblema}
-              onChange={(e) => setDetallesProblema(e.target.value)}
-              placeholder="Ej. Cambios saltan en piñón alto, chirrido en frenos traseros..."
-              rows={2}
-              className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-stone-900 text-sm outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
-            />
+          <div className="pt-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setMostrarWidget(true)}
+              className="rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-blue-500 active:scale-95 transition-all shadow-md shadow-blue-600/10"
+            >
+              Continuar al Calendario de Cal.com →
+            </button>
           </div>
         </div>
-
-        {/* Dynamic Price Output Panel */}
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
-          <label className="block text-sm font-semibold uppercase tracking-wider text-stone-500">
-            Resumen de Presupuesto
-          </label>
-          <div className="flex items-baseline justify-between">
-            <span className="text-stone-600 text-sm">Servicio:</span>
-            <span className="font-semibold text-stone-800 text-sm">{servicio}</span>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-stone-600 text-sm">Bicicleta:</span>
-            <span className="font-semibold text-stone-800 text-sm">
-              {marca.trim() || "Genérica"} {modeloColor.trim() && `(${modeloColor.trim()})`}
-            </span>
-          </div>
-          <div className="flex items-baseline justify-between border-b border-stone-100 pb-3">
-            <span className="text-stone-600 text-sm">Ficha Técnica:</span>
-            <span className="font-semibold text-stone-800 text-xs truncate max-w-[180px]">
-              {numeroCuadro.trim() ? `Nº ${numeroCuadro.trim()}` : "Sin Nº de Serie"}
-            </span>
-          </div>
-          
-          <div className="flex items-baseline justify-between pt-1">
-            <span className="text-stone-800 font-bold text-base">Precio Estimado:</span>
-            <div className="text-right">
-              <span className="text-2xl font-black text-blue-600 transition-all duration-300">{formatUYU(precioEstimado)}</span>
-              <span className="block text-[10px] text-stone-400">Mano de obra (excluye repuestos)</span>
-            </div>
-          </div>
-
-          {/* Animated discount banner using clean Tailwind states */}
-          <div className={`overflow-hidden rounded-xl transition-all duration-300 ${
-            esRepresentada 
-              ? "max-h-20 bg-emerald-50 border border-emerald-100 p-3" 
-              : "max-h-0 opacity-0"
-          }`}>
-            <div className="flex gap-2 items-start text-xs text-emerald-800">
-              <span className="text-base leading-none">🎉</span>
-              <div>
-                <p className="font-bold">¡Descuento de Marca Representada!</p>
-                <p className="text-[11px] text-emerald-700">Se aplica un 10% de descuento automático en tu servicio.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Action CTA */}
-      <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
-        <a
-          href={`https://wa.me/59898824860?text=${encodeURIComponent(
-            `Hola Bicicletas Paysandú, quisiera consultar turno en el taller:\n- Servicio: ${servicio}\n- Bicicleta: ${marca || "Genérica"} ${modeloColor ? `(${modeloColor})` : ""}\n- Falla/Detalles: ${detallesProblema || "Mantenimiento general"}\n- Presupuesto Estimado: ${formatUYU(precioEstimado)}`
-          )}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full sm:w-auto text-center rounded-2xl bg-emerald-600 px-6 py-3.5 font-bold text-white shadow-md transition-all duration-300 hover:bg-emerald-500 hover:scale-[1.02] active:scale-[0.98] text-sm"
-        >
-          💬 Consultar por WhatsApp
-        </a>
-        <button
-          onClick={() => setMostrarWidget(true)}
-          className="w-full sm:w-auto rounded-2xl bg-blue-600 px-8 py-3.5 font-bold text-white shadow-md transition-all duration-300 hover:bg-blue-500 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-blue-500/25 text-sm cursor-pointer"
-        >
-          Elegir Fecha y Hora →
-        </button>
       </div>
     </div>
   );

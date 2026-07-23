@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import type { Reservation } from "@/lib/types";
 import BookingWidget from "@/components/BookingWidget";
 import ReservationsList from "@/components/ReservationsList";
+import RefreshButton from "@/components/RefreshButton";
 
 export default function DashboardPage() {
   const { user, token, loading } = useAuth();
@@ -65,7 +66,7 @@ export default function DashboardPage() {
           Elegí el servicio y contanos la marca de tu bicicleta. Después
           seleccioná fecha y hora en el calendario.
         </p>
-        <BookingWidget email={user.email} />
+        <BookingWidget email={user.email} token={token} onBookingSuccess={cargarReservas} />
       </section>
 
       {/* Historial */}
@@ -74,12 +75,12 @@ export default function DashboardPage() {
           <h2 className="text-xl font-bold tracking-tight text-stone-900">
             Historial de reservas
           </h2>
-          <button
-            onClick={cargarReservas}
-            className="text-sm font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200"
-          >
-            Actualizar ↻
-          </button>
+          <RefreshButton
+            onRefresh={() => {
+              setError(null);
+              cargarReservas();
+            }}
+          />
         </div>
 
         {error && (

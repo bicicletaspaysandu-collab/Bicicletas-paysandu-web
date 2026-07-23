@@ -55,6 +55,9 @@ export default function ReservationsList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<ReservationStatus>("confirmed");
   const [editNotes, setEditNotes] = useState("");
+  const [editExtraCharges, setEditExtraCharges] = useState<string>("");
+  const [editExtraReason, setEditExtraReason] = useState("");
+  const [editCompletionNote, setEditCompletionNote] = useState("");
 
   const cancelar = async (id: string) => {
     if (!onCancel) return;
@@ -77,20 +80,28 @@ export default function ReservationsList({
     setEditingId(r.id);
     setEditStatus(r.status);
     setEditNotes(r.mechanic_notes || "");
+    const extra = r.bike_details?.extra_charges ?? r.extra_charges;
+    setEditExtraCharges(extra ? String(extra) : "");
+    const extraReason = r.bike_details?.extra_charges_reason ?? r.extra_charges_reason;
+    setEditExtraReason(extraReason || "");
+    const compNote = r.bike_details?.completion_note ?? r.completion_note;
+    setEditCompletionNote(compNote || "");
   };
 
   const guardarEdicionAdmin = async (id: string) => {
     setGuardandoId(id);
     setErrores((prev) => ({ ...prev, [id]: "" }));
     try {
-      // We hit the hijacked cancel route which acts as an admin update route when body params are sent
       await apiFetch(`/api/reservations/${id}/cancel`, {
         method: "PUT",
         token,
         body: JSON.stringify({
           status: editStatus,
-          mechanic_notes: editNotes
-        })
+          mechanic_notes: editNotes,
+          extra_charges: editExtraCharges ? Number(editExtraCharges) : 0,
+          extra_charges_reason: editExtraReason,
+          completion_note: editCompletionNote,
+        }),
       });
       setEditingId(null);
       if (onUpdate) onUpdate();
@@ -116,16 +127,20 @@ export default function ReservationsList({
     <div className="space-y-4">
       {reservations.map((r) => {
         const cancelable = esCancelable(r);
-        const activa = r.status !== "cancelled";
+        const activa = r.status !== "cancelled" && r.status !== "entregada";
         const currentStepIdx = getTimelineIndex(r.status);
         const esAdmin = role === "admin" && mostrarCliente;
         const isEditing = editingId === r.id;
+
+        const extraCharges = r.bike_details?.extra_charges ?? r.extra_charges ?? 0;
+        const extraReason = r.bike_details?.extra_charges_reason ?? r.extra_charges_reason ?? "";
+        const completionNote = r.bike_details?.completion_note ?? r.completion_note ?? r.mechanic_notes ?? "";
 
         return (
           <div
             key={r.id}
             className={`animate-page-fade rounded-2xl border bg-white p-5 shadow-sm space-y-4 transition-all ${
-              activa ? "border-stone-200" : "border-stone-200 opacity-70 bg-stone-50/50"
+              activa ? "border-stone-200" : "border-stone-200 opacity-80 bg-stone-50/50"
             }`}
           >
             {/* 1. Header Information */}
@@ -153,9 +168,37 @@ export default function ReservationsList({
                 <p className="text-xl font-black text-blue-600">
                   {formatUYU(r.price)}
                 </p>
-                <p className="text-[10px] text-stone-400">Total Mano de Obra</p>
+                {extraCharges > 0 && (
+                  <p className="text-[11px] text-amber-700 font-medium">
+                    + {formatUYU(extraCharges)} recargo ({extraReason || "Gastos adicionales"})
+                  </p>
+                )}
+                <p className="text-[10px] text-stone-400">Total Servicio + Repuestos</p>
               </div>
             </div>
+
+            {/* Notification Badge for Delivered/Cancelled Status */}
+            {r.status === "entregada" && (
+              <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-xs text-green-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <span>🎉</span> Servicio Finalizado y Entregado
+                </p>
+                {completionNote && (
+                  <p className="text-green-700">Nota del Taller: {completionNote}</p>
+                )}
+              </div>
+            )}
+
+            {r.status === "cancelled" && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <span>❌</span> Reserva Cancelada
+                </p>
+                {completionNote && (
+                  <p className="text-red-700">Motivo: {completionNote}</p>
+                )}
+              </div>
+            )}
 
             {/* 2. Technical Intake File details */}
             {r.bike_details && (
@@ -227,36 +270,59 @@ export default function ReservationsList({
               <div className="pt-3 border-t border-stone-100">
                 {isEditing ? (
                   <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-3">
-                    <p className="text-xs font-bold text-stone-800">Actualizar Estado del Taller</p>
+                    <p className="text-xs font-bold text-stone-800">Actualizar Estado y Gastos Adicionales</p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
                         <label className="block text-[10px] font-bold text-stone-500 mb-1">Estado de Reparación</label>
                         <select
                           value={editStatus}
                           onChange={(e) => setEditStatus(e.target.value as ReservationStatus)}
-                          className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                         >
                           <option value="confirmed">Confirmada</option>
                           <option value="ingresada">Ingresada al Taller</option>
                           <option value="en_diagnostico">En Diagnóstico</option>
                           <option value="en_trabajo">En Reparación</option>
                           <option value="lista_para_retirar">Lista para Retirar</option>
-                          <option value="entregada">Entregada</option>
+                          <option value="entregada">Entregada (Finalizar y Archivar)</option>
                           <option value="cancelled">Cancelada</option>
                         </select>
                       </div>
+
                       <div>
-                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Observaciones Técnicas</label>
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Monto de Recargo Extra (UYU)</label>
+                        <input
+                          type="number"
+                          value={editExtraCharges}
+                          onChange={(e) => setEditExtraCharges(e.target.value)}
+                          placeholder="Ej: 500"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Motivo del Recargo / Repuestos Nuevos</label>
+                        <input
+                          type="text"
+                          value={editExtraReason}
+                          onChange={(e) => setEditExtraReason(e.target.value)}
+                          placeholder="Ej: Cambio de cámara o lubricación especial"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Observaciones / Razón para el Cliente</label>
                         <textarea
                           value={editNotes}
                           onChange={(e) => setEditNotes(e.target.value)}
-                          placeholder="Recomendaciones o detalles de la reparación..."
+                          placeholder="Notas visibles para el cliente..."
                           rows={2}
-                          className="w-full rounded-lg border border-stone-300 bg-white px-2 py-1 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
                         />
                       </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-2 justify-end pt-1">
                       <button
                         onClick={() => setEditingId(null)}
                         className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
@@ -277,7 +343,7 @@ export default function ReservationsList({
                     onClick={() => iniciarEdicion(r)}
                     className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
                   >
-                    🛠️ Gestionar Trabajo de Taller
+                    🛠️ Gestionar Trabajo, Gastos y Notas
                   </button>
                 )}
               </div>

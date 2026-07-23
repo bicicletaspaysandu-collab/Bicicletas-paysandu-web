@@ -88,7 +88,7 @@ export const handleCalWebhook = async (req, res) => {
       const responses = payload.responses || {};
       const serviceType = extractBookingField(responses, ['service', 'servicio', 'tipo']) || 'Ajuste y Regulación';
       const bikeBrand = extractBookingField(responses, ['brand', 'marca', 'bicicleta']) || 'Genérica';
-      
+
       const bikeModelColor = extractBookingField(responses, ['modelo', 'color', 'model']);
       const bikeSerial = extractBookingField(responses, ['cuadro', 'serie', 'frame', 'serial']);
       const issues = extractBookingField(responses, ['problema', 'falla', 'issues', 'detalles', 'comentario']);
@@ -177,10 +177,20 @@ export const handleCalWebhook = async (req, res) => {
  */
 export const getMyReservations = async (req, res) => {
   try {
+    // 1. Link any reservations that match the user's email but don't have user_id set yet
+    if (req.user.email) {
+      await supabase
+        .from('reservations')
+        .update({ user_id: req.user.id })
+        .eq('client_email', req.user.email)
+        .is('user_id', null);
+    }
+
+    // 2. Query reservations that belong to this user (either by user_id or client_email)
     const { data: reservations, error } = await supabase
       .from('reservations')
       .select('*')
-      .eq('user_id', req.user.id)
+      .or(`user_id.eq.${req.user.id},client_email.eq.${req.user.email}`)
       .order('reservation_date', { ascending: false });
 
     if (error) {
@@ -194,13 +204,16 @@ export const getMyReservations = async (req, res) => {
 };
 
 /**
- * Get all reservations (Admin only)
+ * Get all active reservations (Admin only)
+ * Filter out delivered/entregada and cancelled reservations so they auto-clear from admin panel.
  */
 export const getAllReservations = async (req, res) => {
   try {
     const { data: reservations, error } = await supabase
       .from('reservations')
       .select('*')
+      .neq('status', 'entregada')
+      .neq('status', 'cancelled')
       .order('reservation_date', { ascending: false });
 
     if (error) {
@@ -214,25 +227,80 @@ export const getAllReservations = async (req, res) => {
 };
 
 /**
- * Cancel a reservation (Client or Admin)
- * Checks for the 24-hour advance policy.
+ * Update or Cancel a reservation (Client or Admin)
+ * Handles extra repair costs, mechanic notes, completion reasons, and Cal.com synchronization.
  */
 export const cancelReservation = async (req, res) => {
   const { id } = req.params;
-  const { status, mechanic_notes } = req.body;
+  const { status, mechanic_notes, extra_charges, extra_charges_reason, completion_note } = req.body;
 
-  // Intercept as admin status/notes update if parameters are provided
-  if (req.user.role === 'admin' && (status !== undefined || mechanic_notes !== undefined)) {
-    const validStatuses = ['confirmed', 'cancelled', 'ingresada', 'en_diagnostico', 'en_trabajo', 'lista_para_retirar', 'entregada'];
-    if (status && !validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Estado de reserva no válido' });
+  try {
+    // 1. Fetch current reservation
+    const { data: reservation, error: fetchErr } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !reservation) {
+      return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    const updates = {};
-    if (status !== undefined) updates.status = status;
-    if (mechanic_notes !== undefined) updates.mechanic_notes = mechanic_notes;
+    // 2. Intercept as admin update if admin role or extra fields supplied
+    if (req.user.role === 'admin' && (status !== undefined || mechanic_notes !== undefined || extra_charges !== undefined || completion_note !== undefined)) {
+      const validStatuses = ['confirmed', 'cancelled', 'ingresada', 'en_diagnostico', 'en_trabajo', 'lista_para_retirar', 'entregada'];
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Estado de reserva no válido' });
+      }
 
-    try {
+      const updates = {};
+      if (status !== undefined) updates.status = status;
+
+      // Update bike_details JSON with extra charges & completion notes
+      const existingDetails = reservation.bike_details || {};
+      const updatedDetails = {
+        ...existingDetails,
+        extra_charges: extra_charges !== undefined ? Number(extra_charges) : existingDetails.extra_charges,
+        extra_charges_reason: extra_charges_reason !== undefined ? extra_charges_reason : existingDetails.extra_charges_reason,
+        completion_note: completion_note !== undefined ? completion_note : existingDetails.completion_note,
+      };
+      updates.bike_details = updatedDetails;
+
+      if (mechanic_notes !== undefined) {
+        updates.mechanic_notes = mechanic_notes;
+      } else if (completion_note) {
+        updates.mechanic_notes = completion_note;
+      }
+
+      // If extra charges added, update total price
+      if (extra_charges !== undefined && Number(extra_charges) > 0) {
+        const basePrice = Number(reservation.price) || 0;
+        const currentExtra = Number(existingDetails.extra_charges) || 0;
+        updates.price = basePrice - currentExtra + Number(extra_charges);
+      }
+
+      // Sync cancellation/completion to Cal.com API if status is 'entregada' or 'cancelled'
+      if ((status === 'entregada' || status === 'cancelled') && reservation.cal_booking_uid) {
+        const calApiKey = process.env.CAL_API_KEY;
+        if (calApiKey) {
+          try {
+            await fetch(`https://api.cal.com/v2/bookings/${reservation.cal_booking_uid}/decline`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${calApiKey}`,
+                'Content-Type': 'application/json',
+                'cal-api-version': '2024-08-13'
+              },
+              body: JSON.stringify({
+                reason: completion_note || (status === 'entregada' ? 'Servicio completado y entregado' : 'Cancelado por administrador')
+              })
+            });
+          } catch (calErr) {
+            console.warn('Cal.com sync error:', calErr);
+          }
+        }
+      }
+
       const { data: updatedReservation, error: updateError } = await supabase
         .from('reservations')
         .update(updates)
@@ -241,30 +309,13 @@ export const cancelReservation = async (req, res) => {
         .single();
 
       if (updateError) {
-        return res.status(400).json({ error: 'Error al actualizar el estado de la reserva', details: updateError.message });
+        return res.status(400).json({ error: 'Error al actualizar la reserva', details: updateError.message });
       }
+
       return res.json({ message: 'Reserva actualizada exitosamente por el administrador', reservation: updatedReservation });
-    } catch (err) {
-      return res.status(500).json({ error: 'Error interno al actualizar la reserva', details: err.message });
-    }
-  }
-
-  try {
-    // 1. Fetch reservation
-    const { data: reservation, error } = await supabase
-      .from('reservations')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      return res.status(400).json({ error: 'Error al buscar la reserva', details: error.message });
-    }
-    if (!reservation) {
-      return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    // 2. Authorization check: must own the booking or be admin
+    // 3. Client Cancellation Check
     if (req.user.role !== 'admin' && req.user.id !== reservation.user_id) {
       return res.status(403).json({ error: 'No tienes permiso para cancelar esta reserva' });
     }
@@ -273,22 +324,18 @@ export const cancelReservation = async (req, res) => {
       return res.status(400).json({ error: 'La reserva ya se encuentra cancelada' });
     }
 
-    // 3. Rule check: Cannot cancel if booking is within 24 hours
     const reservationTime = new Date(`${reservation.reservation_date}T${reservation.time_slot}`);
-    const timeDiff = reservationTime.getTime() - Date.now();
-    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    const hoursDiff = (reservationTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
     if (hoursDiff < 24) {
       return res.status(400).json({ error: 'Las reservas solo se pueden cancelar con al menos 24 horas de anticipación' });
     }
 
-    // 4. Cancel on Cal.com via API if credentials exist
+    // Cancel on Cal.com via API
     const calApiKey = process.env.CAL_API_KEY;
-    const bookingUid = reservation.cal_booking_uid;
-
-    if (calApiKey && bookingUid) {
+    if (calApiKey && reservation.cal_booking_uid) {
       try {
-        const response = await fetch(`https://api.cal.com/v2/bookings/${bookingUid}/decline`, {
+        await fetch(`https://api.cal.com/v2/bookings/${reservation.cal_booking_uid}/decline`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${calApiKey}`,
@@ -296,20 +343,14 @@ export const cancelReservation = async (req, res) => {
             'cal-api-version': '2024-08-13'
           },
           body: JSON.stringify({
-            reason: 'Cancelado por el cliente desde el panel web de Bicicletas Paysandú'
+            reason: 'Cancelado por el cliente desde el panel web'
           })
         });
-
-        if (!response.ok) {
-          const errData = await response.json();
-          console.warn('Failed to cancel on Cal.com API:', errData);
-        }
       } catch (calError) {
         console.error('Network error calling Cal.com cancel API:', calError);
       }
     }
 
-    // 5. Update status in database
     const { error: updateError } = await supabase
       .from('reservations')
       .update({ status: 'cancelled' })
@@ -321,7 +362,122 @@ export const cancelReservation = async (req, res) => {
 
     res.json({ message: 'Reserva cancelada exitosamente' });
   } catch (error) {
-    res.status(500).json({ error: 'Error interno al cancelar la reserva' });
+    res.status(500).json({ error: 'Error interno al procesar la reserva' });
   }
 };
+
+/**
+ * Get occupied slots for a given date
+ */
+export const getOccupiedSlots = async (req, res) => {
+  const { date } = req.query;
+  if (!date) {
+    return res.status(400).json({ error: 'La fecha es requerida' });
+  }
+
+  try {
+    const { data: reservations, error } = await supabase
+      .from('reservations')
+      .select('time_slot')
+      .eq('reservation_date', date)
+      .neq('status', 'cancelled');
+
+    if (error) {
+      return res.status(400).json({ error: 'Error al obtener los horarios ocupados', details: error.message });
+    }
+
+    const occupied = (reservations || []).map(r => r.time_slot);
+    res.json(occupied);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+/**
+ * Create or Sync a direct reservation (From Invisible Cal.com Funnel Listener)
+ */
+export const createDirectReservation = async (req, res) => {
+  const {
+    service_type,
+    bike_brand,
+    bike_details,
+    reservation_date,
+    time_slot,
+    client_name,
+    cal_booking_id,
+    cal_booking_uid
+  } = req.body;
+
+  const finalServiceType = service_type || 'Servicio Básico';
+  const finalBikeBrand = bike_brand || 'Genérica';
+  const finalReservationDate = reservation_date || new Date().toISOString().split('T')[0];
+  const finalTimeSlot = time_slot || '10:00:00';
+  const clientEmail = req.user ? req.user.email : 'cliente@taller.com';
+
+  const finalPrice = calculatePrice(finalServiceType, finalBikeBrand);
+  const numericBookingId = cal_booking_id ? Number(cal_booking_id) : Math.floor(Date.now() % 2000000000);
+  const uid = cal_booking_uid || `cal_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  try {
+    // 1. Check if a reservation for this client on the exact same date & time slot already exists
+    const { data: existingSlot } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('reservation_date', finalReservationDate)
+      .eq('time_slot', finalTimeSlot)
+      .eq('client_email', clientEmail)
+      .neq('status', 'cancelled')
+      .maybeSingle();
+
+    if (existingSlot) {
+      const { data: updatedReservation, error: updateErr } = await supabase
+        .from('reservations')
+        .update({
+          service_type: finalServiceType,
+          bike_brand: finalBikeBrand,
+          bike_details: bike_details || {},
+          price: finalPrice,
+          status: 'confirmed'
+        })
+        .eq('id', existingSlot.id)
+        .select()
+        .single();
+
+      if (!updateErr && updatedReservation) {
+        return res.status(200).json(updatedReservation);
+      }
+    }
+
+    // 2. Insert or upsert new reservation
+    const { data: newReservation, error } = await supabase
+      .from('reservations')
+      .upsert({
+        user_id: req.user ? req.user.id : null,
+        cal_booking_id: numericBookingId,
+        cal_booking_uid: uid,
+        client_email: clientEmail,
+        client_name: client_name || (req.user ? req.user.email.split('@')[0] : 'Cliente Taller'),
+        service_type: finalServiceType,
+        bike_brand: finalBikeBrand,
+        bike_details: bike_details || {},
+        reservation_date: finalReservationDate,
+        time_slot: finalTimeSlot,
+        price: finalPrice,
+        status: 'confirmed'
+      }, { onConflict: 'cal_booking_id' })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database insertion error:', error);
+      return res.status(400).json({ error: 'Error al crear la reserva', details: error.message });
+    }
+
+    res.status(201).json(newReservation);
+  } catch (error) {
+    console.error('Internal server error in createDirectReservation:', error);
+    res.status(500).json({ error: 'Error interno del servidor al crear la reserva', details: error.message });
+  }
+};
+
 

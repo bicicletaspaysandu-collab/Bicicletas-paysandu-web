@@ -40,10 +40,14 @@ CREATE TABLE IF NOT EXISTS public.products (
   description TEXT,
   price NUMERIC NOT NULL CHECK (price >= 0), -- Strictly in USD
   image_url TEXT NOT NULL,
+  images TEXT[], -- Multiple product photos (URLs or Base64 data)
   category TEXT NOT NULL DEFAULT 'bicicleta' CHECK (category IN ('bicicleta', 'accesorio', 'repuesto', 'indumentaria')),
   stock_status TEXT NOT NULL DEFAULT 'in_stock' CHECK (stock_status IN ('in_stock', 'low_stock', 'out_of_stock', 'on_demand')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration query to add images column if table already exists:
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS images TEXT[];
 
 -- Enable RLS for products
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;

@@ -7,6 +7,7 @@ export interface Product {
   description: string | null;
   price: number;
   image_url: string;
+  images?: string[] | null;
   category: ProductCategory;
   stock_status: StockStatus;
   created_at: string;
@@ -25,12 +26,15 @@ export interface BikeDetails {
   model_color?: string;
   serial_number?: string;
   issues?: string;
+  extra_charges?: number;
+  extra_charges_reason?: string;
+  completion_note?: string;
 }
 
 export interface Reservation {
   id: string;
   user_id: string | null;
-  cal_booking_id: number;
+  cal_booking_id?: number | null;
   cal_booking_uid: string | null;
   client_email: string;
   client_name: string;
@@ -40,6 +44,9 @@ export interface Reservation {
   reservation_date: string; // YYYY-MM-DD
   time_slot: string; // HH:MM:SS
   price: number; // UYU
+  extra_charges?: number;
+  extra_charges_reason?: string;
+  completion_note?: string;
   status: ReservationStatus;
   mechanic_notes: string | null;
   created_at: string;

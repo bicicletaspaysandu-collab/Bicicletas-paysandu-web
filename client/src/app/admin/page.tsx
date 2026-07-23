@@ -8,14 +8,18 @@ import type { Product, Reservation } from "@/lib/types";
 import { formatUSD } from "@/lib/format";
 import ProductForm, { type ProductFormData } from "@/components/ProductForm";
 import ReservationsList from "@/components/ReservationsList";
+import RefreshButton from "@/components/RefreshButton";
+import { formatFecha, formatHora } from "@/lib/format";
 
 type Pestania = "catalogo" | "reservas";
+type VistaReservas = "lista" | "calendario";
 
 export default function AdminPage() {
   const { user, role, token, loading } = useAuth();
   const router = useRouter();
 
   const [pestania, setPestania] = useState<Pestania>("catalogo");
+  const [vistaReservas, setVistaReservas] = useState<VistaReservas>("lista");
   const [productos, setProductos] = useState<Product[] | null>(null);
   const [reservas, setReservas] = useState<Reservation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +122,17 @@ export default function AdminPage() {
         : "bg-white text-stone-700 border border-stone-300 hover:bg-stone-50 hover:border-blue-300"
     }`;
 
+  // Group active reservations by date for the Admin Calendar view
+  const reservasPorFecha: Record<string, Reservation[]> = {};
+  if (reservas) {
+    reservas.forEach((r) => {
+      if (!reservasPorFecha[r.reservation_date]) {
+        reservasPorFecha[r.reservation_date] = [];
+      }
+      reservasPorFecha[r.reservation_date].push(r);
+    });
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="text-3xl font-bold tracking-tight text-stone-900">
@@ -138,7 +153,7 @@ export default function AdminPage() {
           className={tabClase("reservas")}
           onClick={() => setPestania("reservas")}
         >
-          Reservas
+          Reservas de Taller
         </button>
       </div>
 
@@ -147,7 +162,7 @@ export default function AdminPage() {
           {aviso}
           <button
             onClick={() => setAviso(null)}
-            className="font-bold"
+            className="font-bold text-green-800 hover:text-green-900"
             aria-label="Cerrar aviso"
           >
             ✕
@@ -155,69 +170,84 @@ export default function AdminPage() {
         </div>
       )}
       {error && (
-        <div className="mt-6 flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
-          <button
-            onClick={() => setError(null)}
-            className="font-bold"
-            aria-label="Cerrar error"
-          >
-            ✕
-          </button>
         </div>
       )}
 
+      {/* Pestania Catalogo */}
       {pestania === "catalogo" && (
         <section className="mt-8">
-          {editando !== null ? (
-            <ProductForm
-              producto={editando === "nuevo" ? null : editando}
-              onSubmit={guardarProducto}
-              onCancel={() => setEditando(null)}
-            />
-          ) : (
-            <button
-              onClick={() => setEditando("nuevo")}
-              className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition-all duration-300 hover:bg-blue-500 hover:scale-[1.02] active:scale-[0.98] hover:shadow-md hover:shadow-blue-500/10 cursor-pointer"
-            >
-              + Nuevo producto
-            </button>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-bold tracking-tight text-stone-900">
+              Productos en catálogo
+            </h2>
+            <div className="flex gap-2">
+              <RefreshButton onRefresh={cargarProductos} />
+              <button
+                onClick={() => setEditando("nuevo")}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:bg-blue-500 hover:shadow-md hover:shadow-blue-600/10 active:scale-95 cursor-pointer"
+              >
+                + Nuevo producto
+              </button>
+            </div>
+          </div>
+
+          {editando && (
+            <div className="mb-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-md">
+              <h3 className="mb-4 text-lg font-bold text-stone-900">
+                {editando === "nuevo" ? "Crear producto" : "Editar producto"}
+              </h3>
+              <ProductForm
+                initialData={
+                  editando === "nuevo"
+                    ? undefined
+                    : {
+                        title: editando.title,
+                        description: editando.description || "",
+                        price: editando.price,
+                        image_url: editando.image_url,
+                        category: editando.category,
+                        stock_status: editando.stock_status,
+                      }
+                }
+                onSubmit={guardarProducto}
+                onCancel={() => setEditando(null)}
+              />
+            </div>
           )}
 
-          <div className="mt-6 space-y-3 min-h-[300px]">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {productos === null ? (
-              // Match exact height of administrative product rows (h-[98px])
-              Array.from({ length: 3 }).map((_, i) => (
+              Array.from({ length: 6 }).map((_, i) => (
                 <div
-                  key={`admin-prod-pulse-${i}`}
-                  className="h-[98px] animate-pulse rounded-2xl bg-stone-200/60"
+                  key={`admin-cat-pulse-${i}`}
+                  className="h-64 animate-pulse rounded-2xl bg-stone-200/60"
                 />
               ))
             ) : productos.length === 0 ? (
-              <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center text-stone-500">
-                No hay productos en el catálogo. Creá el primero.
+              <div className="col-span-full rounded-2xl border border-stone-200 bg-white p-10 text-center text-stone-500">
+                No hay productos en el catálogo.
               </div>
             ) : (
               productos.map((p) => (
                 <div
                   key={p.id}
-                  className="animate-page-fade flex items-center gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
+                  className="flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={p.image_url}
-                    alt={p.title}
-                    className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-stone-900">
-                      {p.title}
+                  <div>
+                    <span className="inline-block rounded-lg bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-600 capitalize mb-2">
+                      {p.category}
+                    </span>
+                    <h3 className="font-bold text-stone-900">{p.title}</h3>
+                    <p className="mt-1 text-xs text-stone-500 line-clamp-2">
+                      {p.description}
                     </p>
-                    <p className="text-sm font-bold text-stone-700">
+                    <p className="mt-2 text-lg font-black text-blue-600">
                       {formatUSD(p.price)}
                     </p>
                   </div>
-                  <div className="flex flex-shrink-0 gap-2">
+                  <div className="mt-4 flex flex-shrink-0 gap-2">
                     <button
                       onClick={() => setEditando(p)}
                       className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-semibold text-stone-700 transition-colors hover:bg-stone-100"
@@ -239,32 +269,100 @@ export default function AdminPage() {
         </section>
       )}
 
+      {/* Pestania Reservas */}
       {pestania === "reservas" && (
         <section className="mt-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold tracking-tight text-stone-900">
-              Todas las reservas del taller
-            </h2>
-            <button
-              onClick={cargarReservas}
-              className="text-sm font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200"
-            >
-              Actualizar ↻
-            </button>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-stone-900">
+                Agenda General del Taller
+              </h2>
+              <p className="text-xs text-stone-500">
+                Viendo todas las reservas activas de clientes
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-xl border border-stone-200 bg-stone-100 p-1 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setVistaReservas("lista")}
+                  className={`rounded-lg px-3 py-1 transition-all ${
+                    vistaReservas === "lista"
+                      ? "bg-white text-stone-900 shadow-sm"
+                      : "text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  📋 Lista
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVistaReservas("calendario")}
+                  className={`rounded-lg px-3 py-1 transition-all ${
+                    vistaReservas === "calendario"
+                      ? "bg-white text-blue-600 shadow-sm font-bold"
+                      : "text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  📅 Calendario por Día
+                </button>
+              </div>
+
+              <RefreshButton onRefresh={cargarReservas} />
+            </div>
           </div>
-          <div className="space-y-3 min-h-[400px]">
-            {reservas === null ? (
-              // Match average height of detailed reservations (h-[260px])
-              Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={`admin-res-pulse-${i}`}
-                  className="h-[260px] animate-pulse rounded-3xl bg-stone-200/60"
-                />
-              ))
-            ) : (
-              <ReservationsList reservations={reservas} mostrarCliente onUpdate={cargarReservas} />
-            )}
-          </div>
+
+          {vistaReservas === "lista" ? (
+            <div className="space-y-3 min-h-[400px]">
+              {reservas === null ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={`admin-res-pulse-${i}`}
+                    className="h-[260px] animate-pulse rounded-3xl bg-stone-200/60"
+                  />
+                ))
+              ) : (
+                <ReservationsList reservations={reservas} mostrarCliente onUpdate={cargarReservas} />
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6 min-h-[400px]">
+              {reservas === null ? (
+                <div className="h-64 animate-pulse rounded-3xl bg-stone-200/60" />
+              ) : Object.keys(reservasPorFecha).length === 0 ? (
+                <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center text-stone-500">
+                  No hay turnos agendados en el calendario actualmente.
+                </div>
+              ) : (
+                Object.entries(reservasPorFecha).map(([fechaStr, listaRes]) => (
+                  <div key={fechaStr} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                      <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                        <span>📅</span> {formatFecha(fechaStr)}
+                      </h3>
+                      <span className="rounded-full bg-blue-100 px-3 py-0.5 text-xs font-bold text-blue-700">
+                        {listaRes.length} {listaRes.length === 1 ? "turno" : "turnos"}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {listaRes.map((r) => (
+                        <div key={r.id} className="rounded-xl border border-stone-200 bg-stone-50/50 p-3.5 space-y-1.5">
+                          <div className="flex justify-between items-start">
+                            <span className="font-bold text-xs text-blue-600">{formatHora(r.time_slot)} hs</span>
+                            <span className="text-[11px] font-semibold text-stone-700 capitalize">{r.status}</span>
+                          </div>
+                          <p className="text-xs font-bold text-stone-900">{r.service_type}</p>
+                          <p className="text-xs text-stone-600">Cliente: <span className="font-medium text-stone-800">{r.client_name || r.client_email}</span></p>
+                          <p className="text-xs text-stone-500">Bici: {r.bike_brand} ({r.bike_details?.model_color || "No esp."})</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </section>
       )}
     </div>
