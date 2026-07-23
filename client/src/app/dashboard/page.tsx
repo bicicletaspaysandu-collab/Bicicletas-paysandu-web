@@ -33,8 +33,8 @@ export default function DashboardPage() {
   }, [cargarReservas]);
 
   const cancelarReserva = async (id: string) => {
-    await apiFetch(`/api/reservations/${id}/cancel`, {
-      method: "PUT",
+    await apiFetch(`/api/reservations/${id}`, {
+      method: "DELETE",
       token,
     });
     cargarReservas();

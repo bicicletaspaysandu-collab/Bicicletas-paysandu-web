@@ -154,10 +154,10 @@ export default function ReservationsList({
   return (
     <div className="space-y-4">
       {reservations.map((r) => {
-        const cancelable = esCancelable(r);
+        const esAdmin = role === "admin" || mostrarCliente;
+        const cancelable = esAdmin || esCancelable(r);
         const activa = r.status !== "cancelled" && r.status !== "entregada";
         const currentStepIdx = getTimelineIndex(r.status);
-        const esAdmin = role === "admin" || mostrarCliente;
         const isEditing = editingId === r.id;
 
         const extraCharges = r.bike_details?.extra_charges ?? r.extra_charges ?? 0;

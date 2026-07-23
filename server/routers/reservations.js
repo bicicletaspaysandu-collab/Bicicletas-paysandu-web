@@ -30,7 +30,7 @@ router.get('/', requireAuth, requireAdmin, getAllReservations);
 // Authenticated route to cancel or update a reservation
 router.put('/:id/cancel', requireAuth, cancelReservation);
 
-// Admin-only route to delete reservation permanently and cancel in Cal.com
-router.delete('/:id', requireAuth, requireAdmin, deleteReservation);
+// Authenticated route to delete reservation permanently and cancel in Cal.com
+router.delete('/:id', requireAuth, deleteReservation);
 
 export default router;

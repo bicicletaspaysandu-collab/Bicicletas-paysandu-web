@@ -481,8 +481,8 @@ export const createDirectReservation = async (req, res) => {
 };
 
 /**
- * Delete / Cancel a reservation permanently (Admin only)
- * Cancels the booking on Cal.com API and removes/cancels it in Supabase DB.
+ * Delete / Cancel a reservation permanently (Admin or Reservation Owner)
+ * Cancels the booking on Cal.com API and physically deletes it from Supabase DB.
  */
 export const deleteReservation = async (req, res) => {
   const { id } = req.params;
@@ -499,7 +499,15 @@ export const deleteReservation = async (req, res) => {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    // 2. Sync cancellation to Cal.com API if cal_booking_uid exists and CAL_API_KEY is configured
+    // 2. Authorization check: Admin or reservation owner
+    const isOwner = req.user && (req.user.id === reservation.user_id || (req.user.email && req.user.email === reservation.client_email));
+    const isAdmin = req.user && req.user.role === 'admin';
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar esta reserva' });
+    }
+
+    // 3. Sync cancellation to Cal.com API if cal_booking_uid exists and CAL_API_KEY is configured
     const calApiKey = process.env.CAL_API_KEY;
     if (calApiKey && reservation.cal_booking_uid) {
       try {
@@ -511,7 +519,7 @@ export const deleteReservation = async (req, res) => {
             'cal-api-version': '2024-08-13'
           },
           body: JSON.stringify({
-            reason: 'Eliminado por el administrador del sistema'
+            reason: isAdmin ? 'Eliminado por el administrador' : 'Cancelado por el cliente'
           })
         });
         console.log(`Cal.com booking ${reservation.cal_booking_uid} cancelled via API before DB deletion.`);
@@ -520,7 +528,7 @@ export const deleteReservation = async (req, res) => {
       }
     }
 
-    // 3. Delete reservation from Supabase DB (or mark status as cancelled)
+    // 4. Delete reservation from Supabase DB
     const { error: deleteErr } = await supabase
       .from('reservations')
       .delete()
@@ -528,13 +536,10 @@ export const deleteReservation = async (req, res) => {
 
     if (deleteErr) {
       console.error('Error borrando reserva de Supabase:', deleteErr);
-      await supabase
-        .from('reservations')
-        .update({ status: 'cancelled' })
-        .eq('id', id);
+      return res.status(500).json({ error: 'Error al borrar la reserva de la base de datos', details: deleteErr.message });
     }
 
-    return res.json({ message: 'Reserva eliminada exitosamente y cancelada en Cal.com' });
+    return res.json({ message: 'Reserva eliminada exitosamente de la base de datos y Cal.com' });
   } catch (error) {
     console.error('Error en deleteReservation:', error);
     res.status(500).json({ error: 'Error interno al eliminar la reserva' });
