@@ -57,12 +57,12 @@ export default function ReservationsList({
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardandoId, setGuardandoId] = useState<string | null>(null);
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
+  const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<string | null>(null);
 
-  const eliminarReservaAdmin = async (id: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta reserva? Se cancelará en Cal.com y se borrará de la base de datos.")) {
-      return;
-    }
+  const ejecutarEliminacionAdmin = async (id: string) => {
     setEliminandoId(id);
+    setConfirmandoEliminarId(null);
+    setErrores((prev) => ({ ...prev, [id]: "" }));
     try {
       await apiFetch(`/api/reservations/${id}`, {
         method: "DELETE",
@@ -382,17 +382,39 @@ export default function ReservationsList({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => iniciarEdicion(r)}
-                      className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                      className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
                     >
                       🛠️ Gestionar Trabajo, Gastos y Notas
                     </button>
-                    <button
-                      onClick={() => eliminarReservaAdmin(r.id)}
-                      disabled={eliminandoId === r.id}
-                      className="rounded-lg border border-red-200 bg-red-50/60 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100/70 active:scale-95 transition-all disabled:opacity-60"
-                    >
-                      {eliminandoId === r.id ? "Eliminando..." : "🗑️ Eliminar y Cancelar en Cal.com"}
-                    </button>
+                    {confirmandoEliminarId === r.id ? (
+                      <div className="flex items-center gap-2 animate-fadeIn">
+                        <span className="text-xs font-bold text-red-600">¿Borrar de la BD y Cal.com?</span>
+                        <button
+                          onClick={() => ejecutarEliminacionAdmin(r.id)}
+                          disabled={eliminandoId === r.id}
+                          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
+                        >
+                          {eliminandoId === r.id ? "Eliminando..." : "Sí, Eliminar"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmandoEliminarId(null)}
+                          className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmandoEliminarId(r.id)}
+                        disabled={eliminandoId === r.id}
+                        className="rounded-lg border border-red-200 bg-red-50/60 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100/70 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
+                      >
+                        {eliminandoId === r.id ? "Eliminando..." : "🗑️ Eliminar y Cancelar en Cal.com"}
+                      </button>
+                    )}
+                    {errores[r.id] && (
+                      <p className="w-full text-xs font-semibold text-red-600 mt-1">{errores[r.id]}</p>
+                    )}
                   </div>
                 )}
               </div>
