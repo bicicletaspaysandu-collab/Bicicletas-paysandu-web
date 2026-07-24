@@ -236,7 +236,7 @@ export const cancelReservation = async (req, res) => {
 
   try {
     // 1. Fetch current reservation
-    const { data: reservation, error: fetchErr } = await supabase
+    const { data: reservation, error: fetchErr } = await supabaseAdmin
       .from('reservations')
       .select('*')
       .eq('id', id)
@@ -301,7 +301,7 @@ export const cancelReservation = async (req, res) => {
         }
       }
 
-      const { data: updatedReservation, error: updateError } = await supabase
+      const { data: updatedReservation, error: updateError } = await supabaseAdmin
         .from('reservations')
         .update(updates)
         .eq('id', id)
@@ -351,7 +351,7 @@ export const cancelReservation = async (req, res) => {
       }
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('reservations')
       .update({ status: 'cancelled' })
       .eq('id', id);
