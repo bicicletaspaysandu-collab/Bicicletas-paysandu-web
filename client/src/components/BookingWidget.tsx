@@ -160,8 +160,10 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
 
         setReservaExitosa(true);
         if (onBookingSuccess) onBookingSuccess();
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Aviso en Embudo Invisible:", err);
+        const errorMsg = err?.message || "Ocurrió un error al procesar tu reserva.";
+        setErrorSincronizacion(errorMsg);
       }
     };
 

@@ -446,6 +446,32 @@ export const createDirectReservation = async (req, res) => {
       .neq('status', 'cancelled')
       .maybeSingle();
 
+    // 2. Enforce limit of 1 active reservation per client (status not in 'cancelled', 'entregada')
+    let activeQuery = supabaseAdmin
+      .from('reservations')
+      .select('id, status')
+      .neq('status', 'cancelled')
+      .neq('status', 'entregada');
+
+    if (userId && clientEmail) {
+      activeQuery = activeQuery.or(`user_id.eq.${userId},client_email.eq.${clientEmail}`);
+    } else if (userId) {
+      activeQuery = activeQuery.eq('user_id', userId);
+    } else {
+      activeQuery = activeQuery.eq('client_email', clientEmail);
+    }
+
+    const { data: activeReservations } = await activeQuery;
+
+    if (activeReservations && activeReservations.length > 0) {
+      const isUpdatingSameSlot = existingSlot && activeReservations.some(r => r.id === existingSlot.id);
+      if (!isUpdatingSameSlot) {
+        return res.status(400).json({
+          error: 'Ya tienes una reserva activa en taller. Debes esperar a que sea entregada o cancelarla antes de agendar un nuevo turno.'
+        });
+      }
+    }
+
     if (existingSlot) {
       const { data: updatedReservation, error: updateErr } = await supabaseAdmin
         .from('reservations')
