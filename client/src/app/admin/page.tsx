@@ -345,19 +345,7 @@ export default function AdminPage() {
                       </span>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {listaRes.map((r) => (
-                        <div key={r.id} className="rounded-xl border border-stone-200 bg-stone-50/50 p-3.5 space-y-1.5">
-                          <div className="flex justify-between items-start">
-                            <span className="font-bold text-xs text-blue-600">{formatHora(r.time_slot)} hs</span>
-                            <span className="text-[11px] font-semibold text-stone-700 capitalize">{r.status}</span>
-                          </div>
-                          <p className="text-xs font-bold text-stone-900">{r.service_type}</p>
-                          <p className="text-xs text-stone-600">Cliente: <span className="font-medium text-stone-800">{r.client_name || r.client_email}</span></p>
-                          <p className="text-xs text-stone-500">Bici: {r.bike_brand} ({r.bike_details?.model_color || "No esp."})</p>
-                        </div>
-                      ))}
-                    </div>
+                    <ReservationsList reservations={listaRes} mostrarCliente role={role} token={token} onUpdate={cargarReservas} />
                   </div>
                 ))
               )}
