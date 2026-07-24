@@ -19,11 +19,17 @@ if (!supabaseUrl) {
 
 const masterKey = serviceRoleKey || anonKey;
 
-// Master Admin client using Secret Service Role Key (Bypasses RLS to ensure 100% reliable DB deletes and updates)
+// Master Admin client using Secret Service Role Key (Bypasses RLS to ensure 100% reliable DB inserts, deletes, and updates)
 export const supabaseAdmin = createClient(supabaseUrl, masterKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
+  },
+  global: {
+    headers: {
+      Authorization: `Bearer ${masterKey}`,
+      apikey: masterKey,
+    },
   },
 });
 
