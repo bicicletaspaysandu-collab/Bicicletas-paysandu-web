@@ -52,6 +52,27 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
   // Lock ref to prevent double execution from concurrent event listeners
   const procesandoReservaRef = useRef(false);
 
+  // Keep a ref to the latest step 1 form data to prevent stale closure inside event listeners
+  const formDataRef = useRef({
+    servicio,
+    marca,
+    modeloColor,
+    numeroCuadro,
+    detallesProblema,
+    telefono,
+  });
+
+  useEffect(() => {
+    formDataRef.current = {
+      servicio,
+      marca,
+      modeloColor,
+      numeroCuadro,
+      detallesProblema,
+      telefono,
+    };
+  }, [servicio, marca, modeloColor, numeroCuadro, detallesProblema, telefono]);
+
   const servicioInfo = SERVICIOS.find((s) => s.nombre === servicio);
   const esRepresentada = MARCAS_REPRESENTADAS.some(
     (m) => m.toLowerCase() === marca.trim().toLowerCase()
@@ -73,6 +94,8 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
       console.log("🔥 Embudo Invisible Cal.com - Evento capturado:", details);
 
       try {
+        const currentData = formDataRef.current;
+
         // Extraer fecha y hora del payload de Cal.com
         let fecha = "";
         let hora = "";
@@ -110,15 +133,15 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
         }
 
         const calPhone = details?.responses?.phone || details?.data?.responses?.phone || details?.phone || details?.data?.phone || details?.attendees?.[0]?.phone;
-        const phoneToSave = telefono || calPhone || "";
+        const phoneToSave = currentData.telefono || calPhone || "";
 
         const payload = {
-          service_type: servicio || "Servicio Básico",
-          bike_brand: marca || "Genérica",
+          service_type: currentData.servicio || "Servicio Básico",
+          bike_brand: currentData.marca || "Genérica",
           bike_details: {
-            model_color: modeloColor || "No especificado",
-            serial_number: numeroCuadro || "No especificado",
-            issues: detallesProblema || "Ninguno",
+            model_color: currentData.modeloColor || "No especificado",
+            serial_number: currentData.numeroCuadro || "No especificado",
+            issues: currentData.detallesProblema || "Ninguno",
             phone_number: phoneToSave,
           },
           reservation_date: fecha,
