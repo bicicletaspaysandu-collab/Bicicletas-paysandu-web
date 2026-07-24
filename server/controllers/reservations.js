@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { supabase } from '../supabaseClient.js';
+import { supabase, supabaseAdmin } from '../supabaseClient.js';
 
 // Configuration for workshop services and prices (in UYU)
 const SERVICES = {
