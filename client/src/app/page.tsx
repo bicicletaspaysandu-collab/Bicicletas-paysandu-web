@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SERVICIOS, MARCAS_REPRESENTADAS } from "@/lib/types";
 import { formatUYU } from "@/lib/format";
+import { useAuth } from "@/lib/auth-context";
 
 // Hero background slideshow images
 const HERO_IMAGES = [
@@ -20,6 +21,7 @@ const SERVICIO_CARACTERISTICAS: Record<string, string[]> = {
 };
 
 export default function HomePage() {
+  const { user } = useAuth();
   // Cursor coordinate tracking
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
@@ -610,12 +612,21 @@ export default function HomePage() {
           Somos un emprendimiento familiar sanducero con más de **20 años de experiencia** en el mundo del ciclismo. Empezamos como un pequeño taller de barrio y hoy somos orgullosos representantes oficiales de marcas de prestigio como Specialized, Trek, Giant y Scott. Nos apasiona la seguridad y el rendimiento: por eso, cada bicicleta que sale de nuestro taller recibe una revisión de seguridad sin cargo adicional.
         </p>
         <div className="pt-4">
-          <Link
-            href="/registro"
-            className="inline-block rounded-2xl bg-blue-600 px-8 py-4 font-bold text-white transition-all duration-300 hover:bg-blue-500 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg hover:shadow-blue-500/20"
-          >
-            Registrar mi Cuenta
-          </Link>
+          {user ? (
+            <Link
+              href="/dashboard"
+              className="inline-block rounded-2xl bg-blue-600 px-8 py-4 font-bold text-white transition-all duration-300 hover:bg-blue-500 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg hover:shadow-blue-500/20"
+            >
+              Ir a Mi Panel de Reservas
+            </Link>
+          ) : (
+            <Link
+              href="/registro"
+              className="inline-block rounded-2xl bg-blue-600 px-8 py-4 font-bold text-white transition-all duration-300 hover:bg-blue-500 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg hover:shadow-blue-500/20"
+            >
+              Registrar mi Cuenta
+            </Link>
+          )}
         </div>
       </section>
     </div>
