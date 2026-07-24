@@ -109,6 +109,9 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
           }
         }
 
+        const calPhone = details?.responses?.phone || details?.data?.responses?.phone || details?.phone || details?.data?.phone || details?.attendees?.[0]?.phone;
+        const phoneToSave = telefono || calPhone || "";
+
         const payload = {
           service_type: servicio || "Servicio Básico",
           bike_brand: marca || "Genérica",
@@ -116,7 +119,7 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
             model_color: modeloColor || "No especificado",
             serial_number: numeroCuadro || "No especificado",
             issues: detallesProblema || "Ninguno",
-            phone_number: telefono || "No especificado",
+            phone_number: phoneToSave,
           },
           reservation_date: fecha,
           time_slot: hora,

@@ -186,23 +186,36 @@ export default function ReservationsList({
                 <p className="text-xs text-stone-600">
                   Bicicleta: <span className="font-semibold text-stone-800">{r.bike_brand}</span>
                 </p>
-                {mostrarCliente && (
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-stone-600 pt-0.5">
-                    <span>
-                      Cliente: <span className="font-semibold text-stone-800">{r.client_name || "Sin nombre"}</span> ({r.client_email})
-                    </span>
-                    {(r.bike_details?.phone_number || r.phone_number) && (
-                      <a
-                        href={`https://wa.me/${(r.bike_details?.phone_number || r.phone_number || "").replace(/[^0-9]/g, "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200"
-                      >
-                        📞 {r.bike_details?.phone_number || r.phone_number}
-                      </a>
-                    )}
-                  </div>
-                )}
+                {(() => {
+                  const phoneVal = r.bike_details?.phone_number || r.phone_number;
+                  const hasValidPhone = Boolean(phoneVal && phoneVal.trim() !== "" && phoneVal !== "No especificado");
+                  return (
+                    <>
+                      {!mostrarCliente && hasValidPhone && (
+                        <p className="text-xs text-stone-600">
+                          Teléfono: <span className="font-semibold text-stone-800">{phoneVal}</span>
+                        </p>
+                      )}
+                      {mostrarCliente && (
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-stone-600 pt-0.5">
+                          <span>
+                            Cliente: <span className="font-semibold text-stone-800">{r.client_name || "Sin nombre"}</span> ({r.client_email})
+                          </span>
+                          {hasValidPhone && (
+                            <a
+                              href={`https://wa.me/${(phoneVal || "").replace(/[^0-9]/g, "")}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200"
+                            >
+                              📞 {phoneVal}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div className="text-right">
                 <p className="text-xl font-black text-blue-600">
