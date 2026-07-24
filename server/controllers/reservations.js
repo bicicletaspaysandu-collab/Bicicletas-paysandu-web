@@ -178,8 +178,8 @@ export const handleCalWebhook = async (req, res) => {
 export const getMyReservations = async (req, res) => {
   try {
     // 1. Link any reservations that match the user's email but don't have user_id set yet
-    if (req.user.email) {
-      await supabase
+    if (req.user && req.user.email) {
+      await supabaseAdmin
         .from('reservations')
         .update({ user_id: req.user.id })
         .eq('client_email', req.user.email)
@@ -187,7 +187,7 @@ export const getMyReservations = async (req, res) => {
     }
 
     // 2. Query reservations that belong to this user (either by user_id or client_email)
-    const { data: reservations, error } = await supabase
+    const { data: reservations, error } = await supabaseAdmin
       .from('reservations')
       .select('*')
       .or(`user_id.eq.${req.user.id},client_email.eq.${req.user.email}`)
@@ -419,8 +419,25 @@ export const createDirectReservation = async (req, res) => {
   const uid = cal_booking_uid || `cal_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
   try {
+    // Ensure profile exists if user is authenticated to avoid FK constraint error 23503
+    let userId = null;
+    if (req.user && req.user.id) {
+      userId = req.user.id;
+      try {
+        await supabaseAdmin
+          .from('profiles')
+          .upsert({
+            id: req.user.id,
+            email: req.user.email,
+            role: req.user.role || 'cliente'
+          }, { onConflict: 'id' });
+      } catch (profErr) {
+        console.warn('Warning creating profile on the fly:', profErr);
+      }
+    }
+
     // 1. Check if a reservation for this client on the exact same date & time slot already exists
-    const { data: existingSlot } = await supabase
+    const { data: existingSlot } = await supabaseAdmin
       .from('reservations')
       .select('id')
       .eq('reservation_date', finalReservationDate)
@@ -430,9 +447,10 @@ export const createDirectReservation = async (req, res) => {
       .maybeSingle();
 
     if (existingSlot) {
-      const { data: updatedReservation, error: updateErr } = await supabase
+      const { data: updatedReservation, error: updateErr } = await supabaseAdmin
         .from('reservations')
         .update({
+          user_id: userId,
           service_type: finalServiceType,
           bike_brand: finalBikeBrand,
           bike_details: bike_details || {},
@@ -449,10 +467,10 @@ export const createDirectReservation = async (req, res) => {
     }
 
     // 2. Insert or upsert new reservation
-    const { data: newReservation, error } = await supabase
+    const { data: newReservation, error } = await supabaseAdmin
       .from('reservations')
       .upsert({
-        user_id: req.user ? req.user.id : null,
+        user_id: userId,
         cal_booking_id: numericBookingId,
         cal_booking_uid: uid,
         client_email: clientEmail,
@@ -473,10 +491,10 @@ export const createDirectReservation = async (req, res) => {
       return res.status(400).json({ error: 'Error al crear la reserva', details: error.message });
     }
 
-    res.status(201).json(newReservation);
+    return res.status(201).json(newReservation);
   } catch (error) {
-    console.error('Internal server error in createDirectReservation:', error);
-    res.status(500).json({ error: 'Error interno del servidor al crear la reserva', details: error.message });
+    console.error('Error in createDirectReservation:', error);
+    res.status(500).json({ error: 'Error interno al crear la reserva' });
   }
 };
 
