@@ -28,6 +28,8 @@ export default function ProductForm({ initialData, onSubmit, onCancel }: Props) 
   );
   const [imageUrl, setImageUrl] = useState(initialData?.image_url ?? "");
   const [images, setImages] = useState<string[]>(initialData?.images || (initialData?.image_url ? [initialData.image_url] : []));
+  const [category, setCategory] = useState<ProductCategory>(initialData?.category ?? "bicicleta");
+  const [stockStatus, setStockStatus] = useState<StockStatus>(initialData?.stock_status ?? "in_stock");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -93,6 +95,8 @@ export default function ProductForm({ initialData, onSubmit, onCancel }: Props) 
         price: parsed,
         image_url: mainImg,
         images: images.length > 0 ? images : [mainImg],
+        category,
+        stock_status: stockStatus,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al guardar");
@@ -148,6 +152,48 @@ export default function ProductForm({ initialData, onSubmit, onCancel }: Props) 
           className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300"
           placeholder="Detalles técnicos y equipamiento…"
         />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="categoria"
+            className="mb-1 block text-sm font-medium text-stone-700"
+          >
+            Categoría del producto *
+          </label>
+          <select
+            id="categoria"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as ProductCategory)}
+            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 cursor-pointer"
+          >
+            <option value="bicicleta">Bicicletas</option>
+            <option value="accesorio">Accesorios</option>
+            <option value="repuesto">Repuestos</option>
+            <option value="indumentaria">Indumentaria</option>
+          </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="stockStatus"
+            className="mb-1 block text-sm font-medium text-stone-700"
+          >
+            Estado de Stock *
+          </label>
+          <select
+            id="stockStatus"
+            value={stockStatus}
+            onChange={(e) => setStockStatus(e.target.value as StockStatus)}
+            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 cursor-pointer"
+          >
+            <option value="in_stock">En Stock</option>
+            <option value="low_stock">Poco Stock</option>
+            <option value="out_of_stock">Agotado</option>
+            <option value="on_demand">Bajo Pedido</option>
+          </select>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
