@@ -361,16 +361,17 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
               const seleccionado = servicio === s.nombre;
               const info = SERVICIO_DETALLES[s.nombre];
               return (
-                <div
+                <button
+                  type="button"
                   key={s.nombre}
                   onClick={() => setServicio(s.nombre)}
-                  className={`relative flex flex-col justify-between rounded-2xl border p-4 cursor-pointer transition-all duration-300 ${
+                  className={`relative flex flex-col justify-between rounded-2xl border p-4 text-left cursor-pointer touch-manipulation transition-all duration-300 ${
                     seleccionado
                       ? "border-blue-500 bg-white ring-4 ring-blue-500/10 shadow-md scale-[1.02]"
                       : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50"
                   }`}
                 >
-                  <div>
+                  <div className="w-full">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-2xl">{info?.icono || "⚙️"}</span>
                       {s.nombre === "Servicio Básico" && (
@@ -385,13 +386,13 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
                     </p>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between w-full">
                     <span className="text-xs font-bold text-stone-400">Precio base</span>
                     <span className="text-base font-black text-blue-600">
                       {formatUYU(s.precio)}
                     </span>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -412,7 +413,7 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
                 value={marca}
                 onChange={(e) => setMarca(e.target.value)}
                 placeholder="Ej: Specialized, Trek, Giant, Scott..."
-                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-base sm:text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
               />
               {esRepresentada && (
                 <p className="mt-1 text-[11px] font-semibold text-emerald-600 animate-fade-in">
@@ -430,7 +431,7 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
                 value={modeloColor}
                 onChange={(e) => setModeloColor(e.target.value)}
                 placeholder="Ej: Rockhopper 29 - Negro Mate"
-                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-base sm:text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
               />
             </div>
 
@@ -443,7 +444,7 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
                 value={numeroCuadro}
                 onChange={(e) => setNumeroCuadro(e.target.value)}
                 placeholder="Ej: WSBC601049..."
-                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-base sm:text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
               />
             </div>
 
@@ -460,7 +461,7 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
                   if (e.target.value.trim()) setErrorTelefono(null);
                 }}
                 placeholder="Ej: 099 123 456"
-                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-base sm:text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
               />
               {errorTelefono && (
                 <p className="mt-1 text-[11px] font-semibold text-red-600 animate-fade-in">
@@ -478,7 +479,7 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
                 value={detallesProblema}
                 onChange={(e) => setDetallesProblema(e.target.value)}
                 placeholder="Ej: Ruido en la caja de centro, cambio salta"
-                className="w-full rounded-xl border border-stone-300 px-3.5 py-2 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-base sm:text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
               />
             </div>
           </div>
