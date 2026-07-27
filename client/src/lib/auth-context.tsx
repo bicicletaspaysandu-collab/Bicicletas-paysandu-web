@@ -10,6 +10,8 @@ import {
 import { apiFetch } from "./api";
 import type { AuthUser, Role } from "./types";
 
+import { hashPassword } from "./crypto";
+
 const TOKEN_KEY = "bp_access_token";
 const ROLE_KEY = "bp_role";
 
@@ -81,9 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    const hashedPassword = await hashPassword(password);
     const data = await apiFetch<LoginResponse>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password: hashedPassword, rawPassword: password }),
     });
 
     const accessToken = data.session.access_token;
@@ -98,9 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = useCallback(
     async (email: string, password: string) => {
+      const hashedPassword = await hashPassword(password);
       await apiFetch("/api/auth/signup", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password: hashedPassword }),
       });
 
       // Intentar iniciar sesión automáticamente. Puede fallar si el

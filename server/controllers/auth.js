@@ -19,15 +19,28 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, rawPassword } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'El correo electrónico y la contraseña son requeridos' });
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  // 1. Try signing in with the provided password (SHA-256 pre-hashed)
+  let { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
+
+  // 2. Backward compatibility fallback: If user was registered before pre-hashing and rawPassword is provided
+  if (error && rawPassword && rawPassword !== password) {
+    const fallbackRes = await supabase.auth.signInWithPassword({
+      email,
+      password: rawPassword,
+    });
+    if (!fallbackRes.error && fallbackRes.data) {
+      data = fallbackRes.data;
+      error = null;
+    }
+  }
 
   if (error) {
     return res.status(400).json({ error: error.message });
