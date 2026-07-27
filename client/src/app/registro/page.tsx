@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { validateEmailFormat } from "@/lib/email-validator";
 
 export default function RegistroPage() {
   const { signup } = useAuth();
@@ -19,6 +20,12 @@ export default function RegistroPage() {
     e.preventDefault();
     setError(null);
     setAviso(null);
+
+    const emailCheck = validateEmailFormat(email);
+    if (!emailCheck.valid) {
+      setError(emailCheck.error || "Correo electrónico inválido");
+      return;
+    }
 
     if (password !== confirmar) {
       setError("Las contraseñas no coinciden");
