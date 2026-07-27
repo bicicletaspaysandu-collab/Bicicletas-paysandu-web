@@ -48,6 +48,32 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
   const [mostrarWidget, setMostrarWidget] = useState(false);
   const [reservaExitosa, setReservaExitosa] = useState(false);
   const [errorSincronizacion, setErrorSincronizacion] = useState<string | null>(null);
+  const [reservaActivaExistente, setReservaActivaExistente] = useState<any | null>(null);
+  const [cargandoVerificacion, setCargandoVerificacion] = useState(true);
+
+  // Pre-check if client already has an active reservation BEFORE opening Cal.com
+  useEffect(() => {
+    if (!token) {
+      setCargandoVerificacion(false);
+      return;
+    }
+
+    apiFetch<any[]>("/api/reservations", { token })
+      .then((reservas) => {
+        if (Array.isArray(reservas)) {
+          const activa = reservas.find(
+            (r) => r.status !== "cancelled" && r.status !== "entregada"
+          );
+          if (activa) {
+            setReservaActivaExistente(activa);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("No se pudo verificar la reserva activa previa:", err);
+      })
+      .finally(() => setCargandoVerificacion(false));
+  }, [token]);
 
   // Lock ref to prevent double execution from concurrent event listeners
   const procesandoReservaRef = useRef(false);
@@ -223,6 +249,42 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
           >
             Agendar otro turno
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (cargandoVerificacion) {
+    return (
+      <div className="rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-sm">
+        <p className="text-xs font-semibold text-stone-500 animate-pulse">
+          Verificando disponibilidad de turnos…
+        </p>
+      </div>
+    );
+  }
+
+  if (reservaActivaExistente) {
+    return (
+      <div className="rounded-3xl border border-amber-200 bg-amber-50/90 p-8 text-center shadow-md animate-fade-in space-y-4">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl">
+          🛑
+        </div>
+        <h3 className="text-2xl font-bold text-stone-900">
+          Ya tienes un turno activo en el taller
+        </h3>
+        <p className="text-sm text-stone-700 max-w-lg mx-auto leading-relaxed">
+          Tienes una reserva agendada para el <strong className="text-stone-900">{reservaActivaExistente.reservation_date}</strong> a las <strong className="text-stone-900">{reservaActivaExistente.time_slot?.substring(0, 5)} hs</strong> ({reservaActivaExistente.service_type}).
+          <br />
+          Cada cliente puede solicitar <strong className="text-amber-900">1 sola reserva activa a la vez</strong>. Debes esperar a que tu bicicleta sea entregada o cancelar la reserva actual antes de agendar un nuevo turno.
+        </p>
+        <div className="pt-2 flex flex-wrap justify-center gap-3">
+          <a
+            href="/dashboard"
+            className="rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-bold text-white hover:bg-stone-800 transition-all shadow-md hover:scale-105"
+          >
+            Ver Mi Reserva Activa en el Panel →
+          </a>
         </div>
       </div>
     );
