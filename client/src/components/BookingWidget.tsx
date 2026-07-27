@@ -234,20 +234,22 @@ export default function BookingWidget({ email, token, onBookingSuccess }: Bookin
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
           🎉
         </div>
-        <h3 className="text-2xl font-bold text-stone-900">¡Reserva Guardada en la Base de Datos!</h3>
-        <p className="text-sm text-stone-600 max-w-md mx-auto">
-          Tu agendamiento en Cal.com ha sido capturado por el embudo e ingresado a tu historial de reparaciones y al panel del taller.
+        <h3 className="text-2xl font-bold text-stone-900">¡Reserva Registrada Exitosamente!</h3>
+        <p className="text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
+          Tu agendamiento ha sido capturado e ingresado correctamente a tu historial de reparaciones y al panel del taller.
         </p>
-        <div className="pt-2">
+        <div className="pt-2 flex flex-wrap justify-center gap-3">
           <button
             onClick={() => {
               procesandoReservaRef.current = false;
               setReservaExitosa(false);
               setMostrarWidget(false);
+              if (onBookingSuccess) onBookingSuccess();
+              window.location.reload();
             }}
-            className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 transition-all shadow-sm"
+            className="rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-bold text-white hover:bg-stone-800 transition-all shadow-sm cursor-pointer hover:scale-105"
           >
-            Agendar otro turno
+            Ver Mi Reserva en el Panel →
           </button>
         </div>
       </div>
