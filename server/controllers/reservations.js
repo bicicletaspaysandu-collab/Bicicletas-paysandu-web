@@ -114,7 +114,7 @@ export const handleCalWebhook = async (req, res) => {
       const finalPrice = calculatePrice(serviceType, bikeBrand);
 
       // Attempt to link to a registered client profile by email
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('id')
         .eq('email', clientEmail)
@@ -123,7 +123,7 @@ export const handleCalWebhook = async (req, res) => {
       const userId = profile ? profile.id : null;
 
       // Upsert the reservation in database
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('reservations')
         .upsert({
           user_id: userId,
@@ -149,19 +149,23 @@ export const handleCalWebhook = async (req, res) => {
       return res.status(200).json({ message: 'Reserva sincronizada exitosamente' });
     }
 
-    if (type === 'BOOKING_CANCELLED') {
+    if (type === 'BOOKING_CANCELLED' || type === 'BOOKING_RESCHEDULED') {
       // Find booking and mark as cancelled
-      const { error } = await supabase
-        .from('reservations')
-        .update({ status: 'cancelled' })
-        .eq('cal_booking_id', bookingId);
+      let cancelQuery = supabaseAdmin.from('reservations').update({ status: 'cancelled' });
+      if (bookingUid) {
+        cancelQuery = cancelQuery.eq('cal_booking_uid', bookingUid);
+      } else if (bookingId) {
+        cancelQuery = cancelQuery.eq('cal_booking_id', bookingId);
+      }
+
+      const { error } = await cancelQuery;
 
       if (error) {
         console.error('Database cancellation sync error:', error);
         return res.status(500).json({ error: 'Error al cancelar la reserva en la base de datos', details: error.message });
       }
 
-      console.log(`Booking ${bookingId} cancelled successfully in DB.`);
+      console.log(`Booking ${bookingId || bookingUid} cancelled successfully in DB.`);
       return res.status(200).json({ message: 'Cancelación sincronizada exitosamente' });
     }
 
@@ -280,25 +284,12 @@ export const cancelReservation = async (req, res) => {
       }
 
       // Sync cancellation/completion to Cal.com API if status is 'entregada' or 'cancelled'
-      if ((status === 'entregada' || status === 'cancelled') && reservation.cal_booking_uid) {
-        const calApiKey = process.env.CAL_API_KEY;
-        if (calApiKey) {
-          try {
-            await fetch(`https://api.cal.com/v2/bookings/${reservation.cal_booking_uid}/decline`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${calApiKey}`,
-                'Content-Type': 'application/json',
-                'cal-api-version': '2024-08-13'
-              },
-              body: JSON.stringify({
-                reason: completion_note || (status === 'entregada' ? 'Servicio completado y entregado' : 'Cancelado por administrador')
-              })
-            });
-          } catch (calErr) {
-            console.warn('Cal.com sync error:', calErr);
-          }
-        }
+      if ((status === 'entregada' || status === 'cancelled') && (reservation.cal_booking_uid || reservation.cal_booking_id)) {
+        await syncCalComCancellation(
+          reservation.cal_booking_uid,
+          reservation.cal_booking_id,
+          completion_note || (status === 'entregada' ? 'Servicio completado y entregado' : 'Cancelado por administrador')
+        );
       }
 
       const { data: updatedReservation, error: updateError } = await supabaseAdmin
@@ -332,23 +323,12 @@ export const cancelReservation = async (req, res) => {
     }
 
     // Cancel on Cal.com via API
-    const calApiKey = process.env.CAL_API_KEY;
-    if (calApiKey && reservation.cal_booking_uid) {
-      try {
-        await fetch(`https://api.cal.com/v2/bookings/${reservation.cal_booking_uid}/decline`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${calApiKey}`,
-            'Content-Type': 'application/json',
-            'cal-api-version': '2024-08-13'
-          },
-          body: JSON.stringify({
-            reason: 'Cancelado por el cliente desde el panel web'
-          })
-        });
-      } catch (calError) {
-        console.error('Network error calling Cal.com cancel API:', calError);
-      }
+    if (reservation.cal_booking_uid || reservation.cal_booking_id) {
+      await syncCalComCancellation(
+        reservation.cal_booking_uid,
+        reservation.cal_booking_id,
+        'Cancelado por el cliente desde el panel web'
+      );
     }
 
     const { error: updateError } = await supabaseAdmin
@@ -367,6 +347,59 @@ export const cancelReservation = async (req, res) => {
 };
 
 /**
+ * Helper to bi-directionally cancel a booking on Cal.com's API
+ */
+async function syncCalComCancellation(uid, numericId, reason) {
+  const calApiKey = process.env.CAL_API_KEY;
+  if (!calApiKey) return;
+
+  const reasonStr = reason || 'Cancelado desde la aplicación del taller';
+
+  if (uid) {
+    try {
+      const res = await fetch(`https://api.cal.com/v2/bookings/${uid}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${calApiKey}`,
+          'Content-Type': 'application/json',
+          'cal-api-version': '2024-08-13'
+        },
+        body: JSON.stringify({ cancellationReason: reasonStr })
+      });
+      if (res.ok) return;
+    } catch (e) {
+      console.warn('Cal.com v2 /cancel error:', e);
+    }
+
+    try {
+      await fetch(`https://api.cal.com/v2/bookings/${uid}/decline`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${calApiKey}`,
+          'Content-Type': 'application/json',
+          'cal-api-version': '2024-08-13'
+        },
+        body: JSON.stringify({ reason: reasonStr })
+      });
+    } catch (e) {
+      console.warn('Cal.com v2 /decline error:', e);
+    }
+  }
+
+  if (numericId) {
+    try {
+      await fetch(`https://api.cal.com/v1/bookings/${numericId}/cancel?apiKey=${calApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reasonStr })
+      });
+    } catch (e) {
+      console.warn('Cal.com v1 /cancel error:', e);
+    }
+  }
+}
+
+/**
  * Get occupied slots for a given date
  */
 export const getOccupiedSlots = async (req, res) => {
@@ -376,7 +409,7 @@ export const getOccupiedSlots = async (req, res) => {
   }
 
   try {
-    const { data: reservations, error } = await supabase
+    const { data: reservations, error } = await supabaseAdmin
       .from('reservations')
       .select('time_slot')
       .eq('reservation_date', date)
@@ -533,7 +566,7 @@ export const deleteReservation = async (req, res) => {
 
   try {
     // 1. Fetch target reservation
-    const { data: reservation, error: fetchErr } = await supabase
+    const { data: reservation, error: fetchErr } = await supabaseAdmin
       .from('reservations')
       .select('*')
       .eq('id', id)
@@ -551,29 +584,17 @@ export const deleteReservation = async (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso para eliminar esta reserva' });
     }
 
-    // 3. Sync cancellation to Cal.com API if cal_booking_uid exists and CAL_API_KEY is configured
-    const calApiKey = process.env.CAL_API_KEY;
-    if (calApiKey && reservation.cal_booking_uid) {
-      try {
-        await fetch(`https://api.cal.com/v2/bookings/${reservation.cal_booking_uid}/decline`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${calApiKey}`,
-            'Content-Type': 'application/json',
-            'cal-api-version': '2024-08-13'
-          },
-          body: JSON.stringify({
-            reason: isAdmin ? 'Eliminado por el administrador' : 'Cancelado por el cliente'
-          })
-        });
-        console.log(`Cal.com booking ${reservation.cal_booking_uid} cancelled via API before DB deletion.`);
-      } catch (calErr) {
-        console.warn('Error cancelando en la API de Cal.com:', calErr);
-      }
+    // 3. Sync cancellation to Cal.com API
+    if (reservation.cal_booking_uid || reservation.cal_booking_id) {
+      await syncCalComCancellation(
+        reservation.cal_booking_uid,
+        reservation.cal_booking_id,
+        isAdmin ? 'Eliminado por el administrador' : 'Cancelado por el cliente'
+      );
     }
 
-    // 4. Delete reservation from Supabase DB
-    const { error: deleteErr } = await supabase
+    // 4. Delete reservation from Supabase DB using admin privilege
+    const { error: deleteErr } = await supabaseAdmin
       .from('reservations')
       .delete()
       .eq('id', id);
