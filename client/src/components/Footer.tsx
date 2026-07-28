@@ -73,9 +73,15 @@ export default function Footer() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-stone-800 py-4 text-center text-xs text-stone-500">
-        © {new Date().getFullYear()} Bicicletas Paysandú. Todos los derechos
-        reservados.
+      <div className="border-t border-stone-800 py-6 text-center text-xs text-stone-400 space-y-2">
+        <p>
+          © {new Date().getFullYear()} Bicicletas Paysandú. Todos los derechos reservados.
+        </p>
+        <p className="text-[11px] text-stone-400">
+          💻 Sitio web diseñado y desarrollado por <strong className="text-stone-200">Rodrigo Navarro</strong> · 
+          <a href="tel:099223838" className="ml-1.5 text-blue-400 hover:underline">📞 099 223 838</a> · 
+          <a href="mailto:rodrigonavarroa0@gmail.com" className="ml-1.5 text-blue-400 hover:underline">✉️ rodrigonavarroa0@gmail.com</a>
+        </p>
       </div>
     </footer>
   );
