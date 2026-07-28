@@ -47,14 +47,9 @@ export default function HomePage() {
     });
   };
 
-  // Pricing calculator logic
-  const activeService = SERVICIOS.find((s) => s.nombre === selectedService) || SERVICIOS[1];
   const isBrandRepresented = MARCAS_REPRESENTADAS.some(
     (m) => m.toLowerCase() === simulatedBrand.trim().toLowerCase()
   );
-  const simulatedPrice = isBrandRepresented
-    ? activeService.precio * 0.9
-    : activeService.precio;
 
   return (
     <div
@@ -221,9 +216,11 @@ export default function HomePage() {
                 <p className="font-bold text-stone-900 group-hover:text-blue-600 transition-colors duration-300">
                   {s.nombre}
                 </p>
-                <p className="mt-3 text-2xl font-black text-stone-900">
-                  {formatUYU(s.precio)}
-                </p>
+                <div className="mt-3">
+                  <span className="text-xs font-extrabold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full inline-block border border-blue-100">
+                    A cotizar en taller
+                  </span>
+                </div>
 
                 <ul className="mt-4 space-y-1 border-t border-stone-100 pt-3 text-[11px] text-stone-500">
                   {(SERVICIO_CARACTERISTICAS[s.nombre] || []).map((t) => (
@@ -238,77 +235,43 @@ export default function HomePage() {
 
           <div className="rounded-3xl border border-blue-200 bg-blue-50/60 p-5 backdrop-blur-sm">
             <p className="text-sm text-stone-800 leading-relaxed">
-              💡 <span className="font-bold text-blue-900">Descuento oficial del 10%:</span> Si traes una bicicleta de marca **Specialized**, **Trek**, **Giant** o **Scott**, reducimos automáticamente el precio final de tu servicio en el taller.
+              ⭐ <span className="font-bold text-blue-900">Service Oficial Certificado:</span> Si traés una bicicleta de marca **Specialized**, **Trek**, **Giant** o **Scott**, tu servicio incluye diagnóstico especializado, repuestos originales y garantía de taller.
             </p>
           </div>
         </div>
 
-        {/* Dynamic Simulator Widget on Landing Page */}
+        {/* Presupuesto y Diagnostico Card */}
         <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm space-y-5 flex flex-col justify-between">
           <div>
             <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
-              🧮 Simulador de Tarifas
+              📋 Presupuesto y Cotización
             </h3>
-            <p className="text-xs text-stone-500 mt-1">
-              Calculá al instante el costo de tu mantenimiento antes de agendar.
+            <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+              Los costos varían según el modelo, tipo de transmisión y estado de la bicicleta. Traé tu bici o agendá tu turno para recibir la evaluación técnica en el taller.
             </p>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-400 mb-1.5">
-                Paso 1: Elige el Servicio
-              </label>
-              <div className="flex flex-col gap-1.5">
-                {SERVICIOS.map((s) => (
-                  <button
-                    key={s.nombre}
-                    type="button"
-                    onClick={() => setSelectedService(s.nombre)}
-                    className={`w-full text-left px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-300 hover:translate-x-0.5 cursor-pointer ${selectedService === s.nombre
-                        ? "border-blue-500 bg-blue-50 text-blue-950 font-bold"
-                        : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
-                      }`}
-                  >
-                    {s.nombre} ({formatUYU(s.precio)})
-                  </button>
-                ))}
-              </div>
+          <div className="space-y-3 border-t border-stone-100 pt-4 text-xs text-stone-600">
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-600 font-bold">✓</span>
+              <span>Revisión inicial sin compromiso</span>
             </div>
-
-            <div>
-              <label htmlFor="simBrand" className="block text-xs font-semibold uppercase tracking-wider text-stone-400 mb-1.5">
-                Paso 2: Escribe la Marca
-              </label>
-              <input
-                id="simBrand"
-                type="text"
-                value={simulatedBrand}
-                onChange={(e) => setSimulatedBrand(e.target.value)}
-                placeholder="Ej. Trek, Specialized, Caloi..."
-                className="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-stone-900 text-xs outline-none transition-all placeholder:text-stone-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-              />
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-600 font-bold">✓</span>
+              <span>Garantía técnica y repuestos originales</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-600 font-bold">✓</span>
+              <span>Turnos confirmados en línea</span>
             </div>
           </div>
 
           <div className="border-t border-stone-100 pt-4 space-y-3">
-            <div className="flex justify-between items-baseline">
-              <span className="text-xs font-bold text-stone-700">Precio Estimado:</span>
-              <div className="text-right">
-                <span className="text-2xl font-black text-blue-600 transition-all duration-300">
-                  {formatUYU(simulatedPrice)}
-                </span>
-                {isBrandRepresented && (
-                  <span className="block text-[10px] text-green-700 font-bold animate-pulse">10% Descuento Aplicado</span>
-                )}
-              </div>
-            </div>
-
             <Link
               href="/dashboard"
               className="block w-full text-center rounded-xl bg-blue-600 hover:bg-blue-500 text-white py-3 text-xs font-bold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
             >
-              Reservar este turno →
+              Agendar mi Turno en el Taller →
             </Link>
           </div>
         </div>

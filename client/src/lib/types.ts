@@ -62,9 +62,9 @@ export interface AuthUser {
 export type Role = "cliente" | "admin";
 
 export const SERVICIOS = [
-  { nombre: "Ajuste y Regulación", precio: 900 },
-  { nombre: "Servicio Básico", precio: 2000 },
-  { nombre: "Engrase General", precio: 2600 },
+  { nombre: "Ajuste y Regulación", precioText: "A cotizar en taller" },
+  { nombre: "Servicio Básico", precioText: "A cotizar en taller" },
+  { nombre: "Engrase General", precioText: "A cotizar en taller" },
 ] as const;
 
 export const MARCAS_REPRESENTADAS = ["Specialized", "Trek", "Giant", "Scott"];

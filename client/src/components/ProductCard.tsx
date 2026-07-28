@@ -12,7 +12,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const STOCK_CONFIGS = {
-  in_stock: { label: "En Stock", dot: "bg-emerald-500", text: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+  in_stock: { label: "En Stock", dot: "bg-emerald-500 animate-pulse", text: "text-emerald-700 bg-emerald-50 border-emerald-200" },
   low_stock: { label: "Pocas Unidades", dot: "bg-sky-500", text: "text-sky-700 bg-sky-50 border-sky-200" },
   out_of_stock: { label: "Agotado", dot: "bg-rose-500", text: "text-rose-700 bg-rose-50 border-rose-200" },
   on_demand: { label: "Bajo Pedido", dot: "bg-blue-500", text: "text-blue-700 bg-blue-50 border-blue-200" },
@@ -40,7 +40,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <>
-      <article className="group animate-page-fade flex flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 hover:border-blue-200/60">
+      <article className="group animate-page-fade flex flex-col overflow-hidden rounded-3xl border border-stone-200/90 bg-white shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1.5 hover:border-blue-400/60">
         <div 
           onClick={() => setModalAbierto(true)}
           className="relative aspect-[4/3] w-full overflow-hidden bg-stone-100 cursor-pointer"
@@ -54,13 +54,13 @@ export default function ProductCard({ product }: { product: Product }) {
           />
           
           {/* Floating Category Tag */}
-          <span className="absolute top-3 left-3 rounded-full bg-stone-900/80 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+          <span className="absolute top-3 left-3 rounded-full bg-stone-950/80 backdrop-blur-md px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white border border-white/10 shadow-sm">
             {categoryLabel}
           </span>
 
           {/* Photo Count Tag for Multi-Image items */}
           {imageList.length > 1 && (
-            <span className="absolute bottom-3 right-3 rounded-full bg-stone-900/80 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-white flex items-center gap-1">
+            <span className="absolute bottom-3 right-3 rounded-full bg-stone-950/80 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold text-white flex items-center gap-1 border border-white/10">
               📷 {imageList.length} fotos
             </span>
           )}
@@ -70,7 +70,7 @@ export default function ProductCard({ product }: { product: Product }) {
           <div className="flex items-center justify-between gap-2">
             <h3 
               onClick={() => setModalAbierto(true)}
-              className="font-bold leading-tight text-stone-900 text-base line-clamp-1 cursor-pointer hover:text-blue-600 transition-colors"
+              className="font-heading font-bold leading-tight text-stone-900 text-base line-clamp-1 cursor-pointer hover:text-blue-600 transition-colors"
             >
               {product.title}
             </h3>
@@ -81,7 +81,7 @@ export default function ProductCard({ product }: { product: Product }) {
             </span>
           </div>
 
-          <p className="text-xl font-black text-stone-900">
+          <p className="text-2xl font-black text-stone-900 tracking-tight">
             {formatUSD(product.price)}
           </p>
 
@@ -91,10 +91,10 @@ export default function ProductCard({ product }: { product: Product }) {
             </p>
           )}
 
-          <div className="flex items-center justify-between pt-2 border-t border-stone-100 gap-2">
+          <div className="flex items-center justify-between pt-3 border-t border-stone-100 gap-2">
             <button
               onClick={() => setModalAbierto(true)}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
             >
               Ver fotos y detalles 🔍
             </button>
@@ -103,7 +103,7 @@ export default function ProductCard({ product }: { product: Product }) {
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-emerald-600 active:scale-95 shadow-sm shadow-emerald-500/10"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3.5 py-2 text-xs font-bold text-white transition-all hover:from-emerald-600 hover:to-teal-700 active:scale-95 shadow-sm shadow-emerald-500/20"
             >
               💬 Consultar
             </a>
@@ -113,14 +113,14 @@ export default function ProductCard({ product }: { product: Product }) {
 
       {/* Mercado Libre Style Modal Gallery */}
       {modalAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/80 backdrop-blur-md p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/80 backdrop-blur-md p-4 animate-fade-in">
           <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-stone-200 grid lg:grid-cols-12 gap-0 max-h-[90vh]">
             
-            {/* Left Thumbnails & Main Photo Container (Mercado Libre Layout) */}
+            {/* Left Thumbnails & Main Photo Container */}
             <div className="lg:col-span-8 bg-stone-100 p-6 flex flex-col items-center justify-between relative">
               <button
                 onClick={() => setModalAbierto(false)}
-                className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-stone-700 shadow-md hover:bg-white hover:scale-105 active:scale-95 transition-all text-sm font-bold"
+                className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-stone-700 shadow-md hover:bg-white hover:scale-105 active:scale-95 transition-all text-sm font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -164,7 +164,7 @@ export default function ProductCard({ product }: { product: Product }) {
                   {categoryLabel}
                 </span>
 
-                <h2 className="text-xl font-bold text-stone-900 leading-snug">
+                <h2 className="font-heading text-xl font-bold text-stone-900 leading-snug">
                   {product.title}
                 </h2>
 
@@ -187,14 +187,14 @@ export default function ProductCard({ product }: { product: Product }) {
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-white shadow-md shadow-emerald-500/20 transition-all hover:bg-emerald-600 active:scale-95"
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3 text-sm font-bold text-white shadow-md shadow-emerald-500/20 transition-all hover:from-emerald-600 hover:to-teal-700 active:scale-95"
                 >
                   💬 Consultar por WhatsApp
                 </a>
 
                 <button
                   onClick={() => setModalAbierto(false)}
-                  className="w-full rounded-2xl border border-stone-300 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors"
+                  className="w-full rounded-2xl border border-stone-300 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 transition-colors cursor-pointer"
                 >
                   Cerrar vista previa
                 </button>

@@ -1,5 +1,5 @@
 import dns from 'dns';
-import { supabase } from '../supabaseClient.js';
+import { supabase, supabaseAdmin } from '../supabaseClient.js';
 
 const DISPOSABLE_DOMAINS = new Set([
   'tempmail.com', 'mailinator.com', '10minutemail.com', 'guerrillamail.com',
@@ -42,9 +42,11 @@ export const signup = async (req, res) => {
     return res.status(400).json({ error: domainCheck.error });
   }
 
-  const { data, error } = await supabase.auth.signUp({
+  // Create user directly via Admin API with email auto-confirmed (no Gmail verification link sent)
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
+    email_confirm: true,
   });
 
   if (error) {

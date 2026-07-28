@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import Navbar from "@/components/Navbar";
@@ -13,6 +13,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-heading",
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -154,15 +160,50 @@ export default function RootLayout({
     ]
   };
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "¿Cómo agendar un turno de taller mecánico para mi bicicleta en Paysandú?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Podés agendar tu turno en línea desde nuestro sitio web seleccionando el servicio (Ajuste y Regulación, Servicio Básico o Engrase General), completando los datos de contacto y eligiendo la fecha y horario disponible."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿Qué marcas de bicicletas atienden en Bicicletas Paysandú?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Atendemos todas las marcas de bicicletas. Además, ofrecemos servicio técnico certificado con repuestos originales para marcas representadas oficialmente: Specialized, Trek, Giant y Scott."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿Dónde está ubicado el taller de Bicicletas Paysandú y cuáles son los horarios?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Estamos ubicados en Av. España 1644, Paysandú, Uruguay. Atendemos de lunes a viernes de 08:00 a 12:00 hs y de 15:00 a 19:00 hs, y los sábados de 08:30 a 12:30 hs."
+        }
+      }
+    ]
+  };
+
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} h-full antialiased`}
     >
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
       </head>
       <body className="min-h-full flex flex-col">

@@ -6,6 +6,7 @@ import { formatFecha, formatHora, formatUYU } from "@/lib/format";
 import StatusBadge from "./StatusBadge";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api";
+import { getGoogleCalendarUrl, downloadIcsFile } from "@/lib/calendar-helper";
 
 interface Props {
   reservations: Reservation[];
@@ -83,9 +84,10 @@ export default function ReservationsList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<ReservationStatus>("confirmed");
   const [editNotes, setEditNotes] = useState("");
-  const [editExtraCharges, setEditExtraCharges] = useState<string>("");
-  const [editExtraReason, setEditExtraReason] = useState("");
-  const [editCompletionNote, setEditCompletionNote] = useState("");
+  const [editBikeBrand, setEditBikeBrand] = useState("");
+  const [editModelColor, setEditModelColor] = useState("");
+  const [editSerialNumber, setEditSerialNumber] = useState("");
+  const [editIssues, setEditIssues] = useState("");
 
   const cancelar = async (id: string) => {
     if (!onCancel) return;
@@ -97,7 +99,7 @@ export default function ReservationsList({
     } catch (err) {
       setErrores((prev) => ({
         ...prev,
-        [id]: err instanceof Error ? err.message : "Error al cancelar",
+        [id]: err instanceof Error ? err.message : "Error al cancelar la reserva",
       }));
     } finally {
       setCancelando(null);
@@ -108,12 +110,10 @@ export default function ReservationsList({
     setEditingId(r.id);
     setEditStatus(r.status);
     setEditNotes(r.mechanic_notes || "");
-    const extra = r.bike_details?.extra_charges ?? r.extra_charges;
-    setEditExtraCharges(extra ? String(extra) : "");
-    const extraReason = r.bike_details?.extra_charges_reason ?? r.extra_charges_reason;
-    setEditExtraReason(extraReason || "");
-    const compNote = r.bike_details?.completion_note ?? r.completion_note;
-    setEditCompletionNote(compNote || "");
+    setEditBikeBrand(r.bike_brand || "");
+    setEditModelColor(r.bike_details?.model_color || "");
+    setEditSerialNumber(r.bike_details?.serial_number || "");
+    setEditIssues(r.bike_details?.issues || "");
   };
 
   const guardarEdicionAdmin = async (id: string) => {
@@ -126,9 +126,10 @@ export default function ReservationsList({
         body: JSON.stringify({
           status: editStatus,
           mechanic_notes: editNotes,
-          extra_charges: editExtraCharges ? Number(editExtraCharges) : 0,
-          extra_charges_reason: editExtraReason,
-          completion_note: editCompletionNote,
+          bike_brand: editBikeBrand,
+          model_color: editModelColor,
+          serial_number: editSerialNumber,
+          issues: editIssues,
         }),
       });
       setEditingId(null);
@@ -218,15 +219,9 @@ export default function ReservationsList({
                 })()}
               </div>
               <div className="text-right">
-                <p className="text-xl font-black text-blue-600">
-                  {formatUYU(r.price)}
-                </p>
-                {extraCharges > 0 && (
-                  <p className="text-[11px] text-amber-700 font-medium">
-                    + {formatUYU(extraCharges)} recargo ({extraReason || "Gastos adicionales"})
-                  </p>
-                )}
-                <p className="text-[10px] text-stone-400">Total Servicio + Repuestos</p>
+                <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200">
+                  A cotizar en taller
+                </span>
               </div>
             </div>
 
@@ -279,6 +274,44 @@ export default function ReservationsList({
               </div>
             )}
 
+            {/* Calendar Buttons for Active Reservation */}
+            {activa && !mostrarCliente && (
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100">
+                <span className="text-[11px] font-bold text-stone-500 mr-1">Recordatorio:</span>
+                <a
+                  href={getGoogleCalendarUrl({
+                    title: `Turno Taller Bicicletas Paysandú - ${r.service_type}`,
+                    description: `Servicio: ${r.service_type}\nBicicleta: ${r.bike_brand}\nUbicación: Av. España 1644, Paysandú`,
+                    location: "Av. España 1644, 60000 Paysandú, Uruguay",
+                    date: r.reservation_date,
+                    timeSlot: r.time_slot,
+                    durationMinutes: 60,
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
+                >
+                  🔵 Google Calendar
+                </a>
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadIcsFile({
+                      title: `Turno Taller Bicicletas Paysandú - ${r.service_type}`,
+                      description: `Servicio: ${r.service_type}\nBicicleta: ${r.bike_brand}\nUbicación: Av. España 1644, Paysandú`,
+                      location: "Av. España 1644, 60000 Paysandú, Uruguay",
+                      date: r.reservation_date,
+                      timeSlot: r.time_slot,
+                      durationMinutes: 60,
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-stone-100 px-2.5 py-1 text-[11px] font-bold text-stone-700 hover:bg-stone-200 transition-colors border border-stone-200 cursor-pointer"
+                >
+                  🍏 Apple / Outlook (.ics)
+                </button>
+              </div>
+            )}
+
             {/* 4. Interactive Progress Timeline Tracker */}
             {activa && (
               <div className="pt-2">
@@ -323,7 +356,7 @@ export default function ReservationsList({
               <div className="pt-3 border-t border-stone-100">
                 {isEditing ? (
                   <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-3">
-                    <p className="text-xs font-bold text-stone-800">Actualizar Estado y Gastos Adicionales</p>
+                    <p className="text-xs font-bold text-stone-800">🛠️ Editar Ficha Técnica y Estado del Trabajo</p>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
                         <label className="block text-[10px] font-bold text-stone-500 mb-1">Estado de Reparación</label>
@@ -343,35 +376,57 @@ export default function ReservationsList({
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Monto de Recargo Extra (UYU)</label>
-                        <input
-                          type="number"
-                          value={editExtraCharges}
-                          onChange={(e) => setEditExtraCharges(e.target.value)}
-                          placeholder="Ej: 500"
-                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Motivo del Recargo / Repuestos Nuevos</label>
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Marca de la Bicicleta</label>
                         <input
                           type="text"
-                          value={editExtraReason}
-                          onChange={(e) => setEditExtraReason(e.target.value)}
-                          placeholder="Ej: Cambio de cámara o lubricación especial"
-                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                          value={editBikeBrand}
+                          onChange={(e) => setEditBikeBrand(e.target.value)}
+                          placeholder="Ej: Specialized, Trek..."
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Observaciones / Razón para el Cliente</label>
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Modelo y Color</label>
+                        <input
+                          type="text"
+                          value={editModelColor}
+                          onChange={(e) => setEditModelColor(e.target.value)}
+                          placeholder="Ej: Rockhopper 29 - Negro"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Número de Serie del Cuadro</label>
+                        <input
+                          type="text"
+                          value={editSerialNumber}
+                          onChange={(e) => setEditSerialNumber(e.target.value)}
+                          placeholder="Ej: WSBC601049..."
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Fallas o Problemas Observados</label>
+                        <input
+                          type="text"
+                          value={editIssues}
+                          onChange={(e) => setEditIssues(e.target.value)}
+                          placeholder="Ej: Ruido en caja de centro, freno descalibrado"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-stone-500 mb-1">Observaciones / Notas para el Cliente</label>
                         <textarea
                           value={editNotes}
                           onChange={(e) => setEditNotes(e.target.value)}
-                          placeholder="Notas visibles para el cliente..."
+                          placeholder="Notas visibles para el cliente sobre el trabajo realizado..."
                           rows={2}
-                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
+                          className="w-full rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
                         />
                       </div>
                     </div>
@@ -397,11 +452,11 @@ export default function ReservationsList({
                       onClick={() => iniciarEdicion(r)}
                       className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
                     >
-                      🛠️ Gestionar Trabajo, Gastos y Notas
+                      🛠️ Gestionar Estado y Notas del Trabajo
                     </button>
                     {confirmandoEliminarId === r.id ? (
                       <div className="flex items-center gap-2 animate-fadeIn">
-                        <span className="text-xs font-bold text-red-600">¿Borrar de la BD y Cal.com?</span>
+                        <span className="text-xs font-bold text-red-600">¿Borrar esta reserva del sistema?</span>
                         <button
                           onClick={() => ejecutarEliminacionAdmin(r.id)}
                           disabled={eliminandoId === r.id}
@@ -422,7 +477,7 @@ export default function ReservationsList({
                         disabled={eliminandoId === r.id}
                         className="rounded-lg border border-red-200 bg-red-50/60 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100/70 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
                       >
-                        {eliminandoId === r.id ? "Eliminando..." : "🗑️ Eliminar y Cancelar en Cal.com"}
+                        {eliminandoId === r.id ? "Eliminando..." : "🗑️ Eliminar Reserva"}
                       </button>
                     )}
                     {errores[r.id] && (
@@ -433,20 +488,39 @@ export default function ReservationsList({
               </div>
             )}
 
-            {/* 6. Client cancellation button */}
-            {onCancel && activa && !isEditing && r.status === "confirmed" && (
+            {/* 6. Client deletion button */}
+            {onCancel && activa && !isEditing && !esAdmin && (
               <div className="mt-3 border-t border-stone-100 pt-3">
                 {cancelable ? (
-                  <button
-                    onClick={() => cancelar(r.id)}
-                    disabled={cancelando === r.id}
-                    className="rounded-lg border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {cancelando === r.id ? "Cancelando…" : "Cancelar reserva"}
-                  </button>
+                  confirmandoEliminarId === r.id ? (
+                    <div className="flex items-center gap-2 animate-fadeIn">
+                      <span className="text-xs font-bold text-red-600">¿Borrar esta reserva del sistema?</span>
+                      <button
+                        onClick={() => cancelar(r.id)}
+                        disabled={cancelando === r.id}
+                        className="rounded-lg bg-red-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-red-500 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
+                      >
+                        {cancelando === r.id ? "Eliminando..." : "Sí, Eliminar"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmandoEliminarId(null)}
+                        className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmandoEliminarId(r.id)}
+                      disabled={cancelando === r.id}
+                      className="rounded-lg border border-red-200 bg-red-50/60 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100/70 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
+                    >
+                      {cancelando === r.id ? "Eliminando…" : "🗑️ Eliminar Reserva"}
+                    </button>
+                  )
                 ) : (
                   <p className="text-xs text-stone-400">
-                    No cancelable: Faltan menos de 24 horas para la cita.
+                    No eliminable: Faltan menos de 24 horas para la cita.
                   </p>
                 )}
                 {errores[r.id] && (

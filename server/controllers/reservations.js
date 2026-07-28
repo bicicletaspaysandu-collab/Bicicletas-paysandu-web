@@ -236,7 +236,17 @@ export const getAllReservations = async (req, res) => {
  */
 export const cancelReservation = async (req, res) => {
   const { id } = req.params;
-  const { status, mechanic_notes, extra_charges, extra_charges_reason, completion_note } = req.body;
+  const {
+    status,
+    mechanic_notes,
+    extra_charges,
+    extra_charges_reason,
+    completion_note,
+    bike_brand,
+    model_color,
+    serial_number,
+    issues
+  } = req.body;
 
   try {
     // 1. Fetch current reservation
@@ -251,7 +261,15 @@ export const cancelReservation = async (req, res) => {
     }
 
     // 2. Intercept as admin update if admin role or extra fields supplied
-    if (req.user.role === 'admin' && (status !== undefined || mechanic_notes !== undefined || extra_charges !== undefined || completion_note !== undefined)) {
+    if (req.user.role === 'admin' && (
+      status !== undefined ||
+      mechanic_notes !== undefined ||
+      completion_note !== undefined ||
+      bike_brand !== undefined ||
+      model_color !== undefined ||
+      serial_number !== undefined ||
+      issues !== undefined
+    )) {
       const validStatuses = ['confirmed', 'cancelled', 'ingresada', 'en_diagnostico', 'en_trabajo', 'lista_para_retirar', 'entregada'];
       if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ error: 'Estado de reserva no válido' });
@@ -259,11 +277,15 @@ export const cancelReservation = async (req, res) => {
 
       const updates = {};
       if (status !== undefined) updates.status = status;
+      if (bike_brand !== undefined) updates.bike_brand = bike_brand;
 
-      // Update bike_details JSON with extra charges & completion notes
+      // Update bike_details JSON with specifications
       const existingDetails = reservation.bike_details || {};
       const updatedDetails = {
         ...existingDetails,
+        model_color: model_color !== undefined ? model_color : existingDetails.model_color,
+        serial_number: serial_number !== undefined ? serial_number : existingDetails.serial_number,
+        issues: issues !== undefined ? issues : existingDetails.issues,
         extra_charges: extra_charges !== undefined ? Number(extra_charges) : existingDetails.extra_charges,
         extra_charges_reason: extra_charges_reason !== undefined ? extra_charges_reason : existingDetails.extra_charges_reason,
         completion_note: completion_note !== undefined ? completion_note : existingDetails.completion_note,

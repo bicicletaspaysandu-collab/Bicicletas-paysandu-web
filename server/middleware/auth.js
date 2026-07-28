@@ -1,8 +1,8 @@
-import { supabase } from '../supabaseClient.js';
+import { supabase, supabaseAdmin } from '../supabaseClient.js';
 
 /**
  * Middleware to authenticate requests using Supabase Auth JWT.
- * It also attaches the user profile (including role) to req.user.
+ * It attaches the user profile and role directly from the Supabase Database (profiles table) to req.user.
  */
 export const requireAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -13,30 +13,25 @@ export const requireAuth = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // Verify token with Supabase
+    // Verify JWT token with Supabase Auth
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       return res.status(401).json({ error: 'Sesión inválida o expirada' });
     }
 
-    // Fetch user role from profiles table using the service role client if needed,
-    // or the default client (profiles is publicly readable in select).
-    const { data: profile, error: profileError } = await supabase
+    // Direct Database Query: Fetch user role directly from Supabase 'profiles' table
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (profileError || !profile) {
-      return res.status(403).json({ error: 'No se pudo verificar el perfil del usuario' });
-    }
-
     // Attach user information to request
     req.user = {
       id: user.id,
       email: user.email,
-      role: profile.role
+      role: profile?.role || 'cliente',
     };
 
     next();

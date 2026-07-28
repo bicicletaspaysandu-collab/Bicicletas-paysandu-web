@@ -219,7 +219,7 @@ export default function ProductForm({ initialData, onSubmit, onCancel }: Props) 
 
         <div>
           <label className="mb-1 block text-sm font-medium text-stone-700">
-            Subir Imágenes (Estilo Mercado Libre) *
+            Subir Imágenes del Producto *
           </label>
           <input
             type="file"

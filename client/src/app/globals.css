@@ -3,6 +3,7 @@
 :root {
   --background: #fafaf9;
   --foreground: #1c1917;
+  --font-heading: 'Plus Jakarta Sans', var(--font-geist-sans), sans-serif;
 }
 
 @theme inline {
@@ -10,18 +11,25 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-heading);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  overflow-x: hidden;
 }
 
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-heading), var(--font-geist-sans), sans-serif;
+}
+
+/* Page transitions */
 @keyframes pageFade {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -30,25 +38,74 @@ body {
 }
 
 .animate-page-fade {
-  animation: pageFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pageFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Background spotlight Ken Burns animation */
 @keyframes heroKenBurns {
   0% {
     transform: scale(1) translate(0%, 0%);
-    filter: blur(0px) contrast(1);
   }
   50% {
-    transform: scale(1.12) translate(-1.5%, -1%);
-    filter: blur(1px) contrast(1.05);
+    transform: scale(1.08) translate(-1%, -1%);
   }
   100% {
-    transform: scale(1.06) translate(1%, 1%);
-    filter: blur(0px) contrast(1);
+    transform: scale(1.04) translate(0.5%, 0.5%);
   }
 }
 
 .animate-hero-kenburns {
-  animation: heroKenBurns 10s ease-in-out infinite alternate;
+  animation: heroKenBurns 12s ease-in-out infinite alternate;
 }
 
+/* Gradient Shimmer Text Animation */
+@keyframes textShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-shimmer-text {
+  background-size: 200% auto;
+  animation: textShimmer 6s ease infinite;
+}
+
+/* Glassmorphism & Micro-elevation */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(229, 231, 235, 0.8);
+}
+
+.dark-glass-panel {
+  background: rgba(24, 24, 27, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
