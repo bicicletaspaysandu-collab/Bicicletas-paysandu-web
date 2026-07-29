@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import Navbar from "@/components/Navbar";
@@ -211,6 +212,7 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
+          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
