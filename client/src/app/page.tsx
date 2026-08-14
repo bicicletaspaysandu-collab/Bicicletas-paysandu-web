@@ -179,9 +179,9 @@ export default function HomePage() {
             <p className="text-xs text-stone-500 mt-0.5">El taller de referencia en Paysandú.</p>
           </div>
           <div className="group rounded-3xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-blue-200/60 transition-all duration-300">
-            <p className="text-3xl sm:text-4xl font-black text-blue-600 transition-colors duration-300 group-hover:text-blue-500">4 Marcas</p>
-            <p className="text-sm font-bold text-stone-800 mt-1">Representadas</p>
-            <p className="text-xs text-stone-500 mt-0.5">Specialized, Trek, Giant y Scott.</p>
+            <p className="text-3xl sm:text-4xl font-black text-blue-600 transition-colors duration-300 group-hover:text-blue-500">Todo Tipo</p>
+            <p className="text-sm font-bold text-stone-800 mt-1">De Bicicletas</p>
+            <p className="text-xs text-stone-500 mt-0.5">Ruta, mountain bike, urbana y más</p>
           </div>
           <div className="group rounded-3xl border border-stone-200 bg-white p-6 shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-blue-200/60 transition-all duration-300">
             <p className="text-3xl sm:text-4xl font-black text-blue-600 transition-colors duration-300 group-hover:text-blue-500">99.8%</p>
@@ -235,7 +235,7 @@ export default function HomePage() {
 
           <div className="rounded-3xl border border-blue-200 bg-blue-50/60 p-5 backdrop-blur-sm">
             <p className="text-sm text-stone-800 leading-relaxed">
-              ⭐ <span className="font-bold text-blue-900">Service Oficial Certificado:</span> Si traés una bicicleta de marca **Specialized**, **Trek**, **Giant** o **Scott**, tu servicio incluye diagnóstico especializado, repuestos originales y garantía de taller.
+              ⭐ <span className="font-bold text-blue-900">Service Oficial Certificado:</span> Si traés una bicicleta de las marcas que representamos, tu servicio incluye diagnóstico especializado, repuestos originales y garantía de taller.
             </p>
           </div>
         </div>

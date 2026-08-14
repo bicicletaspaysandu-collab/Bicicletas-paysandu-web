@@ -19,7 +19,7 @@ const SERVICIO_DETALLES: Record<string, { icono: string; descripcion: string; ta
     descripcion: "Mantenimiento preventivo rápido para mantener tu bici segura.",
     tareas: ["Ajuste de frenos delanteros y traseros", "Regulación y calibración de cambios", "Lubricación de transmisión"]
   },
-  "Servicio Básico": {
+  "Servicio Básico": {  
     icono: "🧼",
     descripcion: "Limpieza profunda y puesta a punto general para el uso diario.",
     tareas: ["Limpieza de transmisión y cuadro", "Ajuste de frenos y cambios", "Ajuste de tornillería general"]
